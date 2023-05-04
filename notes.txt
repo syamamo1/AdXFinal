@@ -1,0 +1,45 @@
+General architecture:
+    1. Bid on campaigns based on some policy made by us
+    2. Use model that takes vector of size (24) and outputs size (20)
+
+Campaign: (segment, reach, budget, start, end)
+reach = budget for "free" campaigns
+statistics = {campaign #, (num impressions, dollars spent)}
+
+Level 1 TA bots bid 0.999 on just their segment
+
+
+rev = (impressions/reach)*Q
+
+
+
+
+
+##################################
+Part 1: Bidding on Campaigns
+##################################
+
+Lowest bidder wins and gets the campaign with
+budget equal to the second highest bid. 
+
+So, we want to bid what we think the campaign 
+is worth. Not sure how to figure this out?
+What's considered a good campaign vs bad?
+
+##################################
+Part 2: Deep Learning Models
+##################################
+
+Input - vector of size (26) comprised of the following:
+    - 20 segments, represented as one-hot
+    - reach (0, 1], get this by normalizing by 3067
+    - budget (0, 1], get this by normalizing by ??
+    - days left in campaign (0, 1], get this by normalizing by 10
+    - current day, one hot
+
+Output - vector of size (20):
+    - the bids [0, 1] for each of the 20 segments
+    - limits
+
+Loss Function
+    - profit
