@@ -1,16 +1,21 @@
 General architecture:
     1. Bid on campaigns based on some policy made by us
-    2. Use model that takes vector of size (24) and outputs size (20)
+    2. Use model that takes vector of size (~24) and outputs size (~20+20)
 
 Campaign: (segment, reach, budget, start, end)
 reach = budget for "free" campaigns
 statistics = {campaign #, (num impressions, dollars spent)}
 
 Level 1 TA bots bid 0.999 on just their segment
+    - we can beat this by bidding 0.9 on just our segment (no campaign bidding)
 
+Effective reach
+    - ER = sigmoidal in [0, 1.38442]
+    - profit = ER * Budget - Cost
 
-rev = (impressions/reach)*Q
-
+Quality Score:
+    - QS_t+1 = (QS_t + ER) / 2
+    - affects campaign bidding
 
 
 

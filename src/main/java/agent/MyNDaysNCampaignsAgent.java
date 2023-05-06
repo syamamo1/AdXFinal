@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.PrintStream;
 import java.time.LocalTime;
 
+
 import com.google.common.collect.ImmutableMap;
 
 import adx.agent.AgentLogic;
@@ -48,22 +49,48 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 
 			Set<SimpleBidEntry> bids = new HashSet<>();
 			MarketSegment marketSegment = c.getMarketSegment();
+			double budget = c.getBudget();
+			int reach = c.getReach();
+			double moneySpent = getCumulativeCost(c);
+			int impressions = getCumulativeReach(c);
+			double budgetLeft = Math.max((budget-moneySpent), 1);
+
+			double ratio = 1;
+			if (impressions > reach) {
+				ratio = 0.001;
+			}
+			// 0.233 is where dER/dx > 1
+			// if (effectiveReach(impressions, reach) > 0.233) {
+			// 	ratio = getDerivative(impressions, reach);
+			// }
 
 			for(MarketSegment m : MarketSegment.values()) {
+				// Our segment
+				if (marketSegment.equals(m)) {
+					double bid = 0.9;
+					SimpleBidEntry bidEntry = new SimpleBidEntry(
+						m, 
+						bid*ratio, 
+						budgetLeft*bid // segment limit 
+					);
+					bids.add(bidEntry);
+				}
 
-				// if (MarketSegment.marketSegmentSubset(m, marketSegment)) {
-				// 	double bid = 1;
+				// Segments we are subsegments of (Tier 3 segments)
+				// else if (MarketSegment.marketSegmentSubset(marketSegment, m)) {
+				// 	double bid = 0.1;
 				// 	SimpleBidEntry bidEntry = new SimpleBidEntry(
 				// 		m, 
-				// 		bid, 
-				// 		c.getBudget() // segment limit 
+				// 		bid*ratio, 
+				// 		budgetLeft*bid // segment limit 
 				// 	);
 				// 	bids.add(bidEntry);
 				// }
-				if (m.equals(marketSegment)) {
-					SimpleBidEntry bidEntry = new SimpleBidEntry(m,0.9,c.getBudget());
-					bids.add(bidEntry);			
-				}
+
+				// if (m.equals(marketSegment)) {
+				// 	SimpleBidEntry bidEntry = new SimpleBidEntry(m,bid,bid*thisDayBudget);
+				// 	bids.add(bidEntry);			
+				// }
 
 				else { // Don't bid on segments that don't add to our reach
 					SimpleBidEntry bidEntry = new SimpleBidEntry(m,0.0,1.0);
@@ -73,7 +100,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
 				c.getId(), 
-				c.getBudget(), // campaign limit
+				budgetLeft*0.9, // campaign limit
 				bids
 			);
 			
@@ -90,11 +117,23 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		Map<Campaign, Double> bids = new HashMap<>();
 		
 		for (Campaign c : campaignsForAuction) {
-			bids.put(c, Math.random());
+			bids.put(c, c.getReach()*0.5);
 		}
 		
 		return bids;
 	}
+
+
+	// Takes in current impressions x, reach R
+	public double getDerivative(int x, int R) {
+		double a = 4.08577;
+		double b = 3.08577;
+		double bot = Math.pow((a*(x/R) - b), 2);
+		double dER_dx = (2/R) * (1/(1 + bot));
+
+		return dER_dx;
+	}
+
 
 	// Redirect console prints to file so we can actually read it
 	// Thanks: https://www.tutorialspoint.com/redirecting-system-out-println-output-to-a-file-in-java

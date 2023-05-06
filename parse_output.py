@@ -10,55 +10,106 @@ def get_data(filename):
     games, final_results = get_games(filename)
 
     delim = ' EndOfDayMessage: '
-    data = init_data()
-    for i, game in enumerate(games):
+    data, campaigns = init_data()
+    # Iterate games
+    for game_num, game in enumerate(games):
+
+        # Iterate days
         for end_day_msg in game.split(delim)[1:]:
+
+            # Iterate lines
+            new_campaigns = {}
+            campaigns_temp = {}
             for line in end_day_msg.split('\n'):
+                
+                # get Day
                 if 'Day:' in line:
                     spl = line.split(':')[-1].split(',')[0]
                     day = int(spl)
-
-# 	Statistics: {69=(2846, 1195.756745790099), 70=(0, 0.0), 57=(0, 0.0), 74=(207, 206.99992711270198)},
-#   Statistics: {76=(0, 0.0)},      
-#   Statistics: null,
           
-                # if 'Statistics:' in line:
-                #     total_impressions = 0
-
-                #     if 'null' not in line: 
-                #         spl = line.split(':')[-1]
-                #         spl = re.split('{|=|\(|,|\)|}', spl)
-                #         spl = [x for x in spl if x not in ['', ' ']]
+                # get Campaign impressions, cost
+                if 'Statistics:' in line:
+                    if 'null' not in line: 
+                        spl = line.split(':')[-1]
+                        spl = re.split('{|=|\(|,|\)|}', spl)
+                        spl = [x for x in spl if x not in ['', ' ']]
                         
-                #         for i, num in enumerate(spl):
-                            
+                        for i, num in enumerate(spl):
+                            if i % 3 == 0:
+                                id = int(num)
+                                campaigns_temp[id] = {}
+                            elif i % 3 == 1:
+                                impressions = int(num)
+                                campaigns_temp[id]['impressions'] = impressions
+                            elif i % 3 == 2:
+                                cost = float(num)
+                                campaigns_temp[id]['cost'] = cost
 
-                # if 'New campaigns:' in line: pass
+                # get Campaign reach, budget
+                if '		Campaign' in line: 
+                    spl = re.split('Campaign|=|\[|]|,|\t| ', line)
+                    spl = [x for x in spl if x not in ['', ' ']]
+                    
+                    id = int(spl[0])
+                    new_campaigns[id] = {}
+                    new_campaigns[id]['startDay'] = int(spl[2])
+                    new_campaigns[id]['endDay'] = int(spl[4])
+                    new_campaigns[id]['segment'] = spl[6]
+                    new_campaigns[id]['reach'] = int(spl[8])
+                    new_campaigns[id]['budget'] = float(spl[10])
                 
+                # get Quality Score
                 if 'Quality Score = ' in line:
                     spl = line.split('=')[-1]
                     quality_score = float(spl)
                 
+                # get Cumulative Profit
                 if 'Cumulative Profit:' in line:
                     spl = line.split(':')[-1]
                     cumulative_profit = float(spl)
                 
                 # if 'NDaysBidBundle:' in line: pass
 
+                # get Player
                 if ' from ' in line:
                     player = line.split('from ')[-1].split('\n')[0]
 
-            data[player]['quality_scores'][i, day-1] += quality_score
-            data[player]['cumulative_profits'][i, day-1] += cumulative_profit
+
+            # Save data for player
+            data[player]['quality_scores'][game_num, day-1] += quality_score
+            data[player]['cumulative_profits'][game_num, day-1] += cumulative_profit
+            save_campaign_info(campaigns, new_campaigns, campaigns_temp, player, game_num)
+
+    return data, campaigns, final_results
 
 
-    return data
+# Transfer info from dicts
+def save_campaign_info(campaigns, new_campaigns, campaigns_temp, player, game_num):
+    
+    # Start, end, segment, reach, budget
+    for id in new_campaigns:
+        campaigns[player][game_num][id] = {}
+
+        campaigns[player][game_num][id]['startDay'] = new_campaigns[id]['startDay']
+        campaigns[player][game_num][id]['endDay'] = new_campaigns[id]['endDay']
+        campaigns[player][game_num][id]['segment'] = new_campaigns[id]['segment']
+        campaigns[player][game_num][id]['reach'] = new_campaigns[id]['reach']
+        campaigns[player][game_num][id]['budget'] = new_campaigns[id]['budget']
+
+    # Impressions, cost
+    for id in campaigns_temp:
+
+        campaigns[player][game_num][id]['impressions'] = campaigns_temp[id]['impressions']
+        campaigns[player][game_num][id]['cost'] = campaigns_temp[id]['cost']
+    
+    return campaigns
 
 
-# Initialize dict of dicts to store 
-# game data
+# Initialize data - dict of dicts to store game data
+# Initializes campagins - dict of dicts to store campaigns
 def init_data():
     data = {}
+    campaigns = {}
     for i in range(0, 10):
         if i == 0:
             player = 'AlexSean'
@@ -72,11 +123,13 @@ def init_data():
         data[player] = {}
         data[player]['quality_scores'] = quality_scores
         data[player]['cumulative_profits'] = cumulative_profit
-        data[player]['total_reach'] = 0
-        data[player]['total_impressions'] = 0
-        data[player]['total_cost'] = 0
 
-    return data
+        # Make campaigns data
+        campaigns[player] = {}
+        for game_num in range(500):
+            campaigns[player][game_num] = {}
+
+    return data, campaigns
 
 
 # Returns list of 500 game logs

@@ -5,16 +5,17 @@
 #     if True:
 #         print(i)
 
-import re
+# import re
 
-s = 'Statistics: {69=(2846, 1195.756745790099), 70=(0, 0.0), 57=(0, 0.0), 74=(207, 206.99992711270198)},'
-# s = 'Statistics: {76=(0, 0.0)},      '
+# s = '		Campaign 78 = [startDay = 8, endDay = 9, Segment = FEMALE_YOUNG_LOW_INCOME, Reach = 1980, Budget = 741.9802882601425]'
 
+# print(s)
 
-spl = s.split(':')[-1]
+# spl = re.split('Campaign|=|\[|]|,|\t| ', s)
+# spl = [x for x in spl if x not in ['', ' ']]
+# print(spl)
+import numpy as np
+a = np.zeros((5, 5))
+a[1,2] += 1
 
-print(spl)
-
-spl = re.split('{|=|\(|,|\)|}', spl)
-spl = [x for x in spl if x not in ['', ' ']]
-print(spl)
+print(np.where(a==1))
