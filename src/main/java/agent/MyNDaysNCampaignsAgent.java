@@ -54,24 +54,33 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			double moneySpent = getCumulativeCost(c);
 			int impressions = getCumulativeReach(c);
 			double budgetLeft = Math.max((budget-moneySpent), 1);
+			int startDay = c.getStartDay();
+			int endDay = c.getEndDay();
+			int day = getCurrentDay();
 
-			double ratio = 1;
+			double bid = 1;
+			// do something with the derivative here...
 			if (impressions > reach) {
-				ratio = 0.001;
+				bid = 0.001;
 			}
-			// 0.233 is where dER/dx > 1
-			// if (effectiveReach(impressions, reach) > 0.233) {
-			// 	ratio = getDerivative(impressions, reach);
-			// }
+			if (startDay == endDay) {
+				bid = 0.9;
+			}
+			else {
+				double num = (budget-moneySpent) * (day - startDay + 0.5);
+				double den = (reach-impressions) * (endDay - startDay + 0.5);
+				bid = Math.sin(num/den);
+				bid = Math.max(bid, 0.5);
+			}
+
 
 			for(MarketSegment m : MarketSegment.values()) {
 				// Our segment
 				if (marketSegment.equals(m)) {
-					double bid = 0.9;
 					SimpleBidEntry bidEntry = new SimpleBidEntry(
 						m, 
-						bid*ratio, 
-						budgetLeft*bid // segment limit 
+						bid, 
+						budgetLeft // segment limit 
 					);
 					bids.add(bidEntry);
 				}
@@ -100,7 +109,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
 				c.getId(), 
-				budgetLeft*0.9, // campaign limit
+				budgetLeft*bid, // campaign limit
 				bids
 			);
 			
@@ -117,7 +126,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		Map<Campaign, Double> bids = new HashMap<>();
 		
 		for (Campaign c : campaignsForAuction) {
-			bids.put(c, c.getReach()*0.5);
+			bids.put(c, c.getReach()*0.7);
 		}
 		
 		return bids;

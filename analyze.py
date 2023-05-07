@@ -72,7 +72,7 @@ def main():
     data, campaigns, final_results = get_data(log_filename)
     compute_stats(campaigns, players, stats_filename)
     make_histograms(campaigns, players)
-    graph_performance(data, players)
+    # graph_performance(data, players)
 
 
 
