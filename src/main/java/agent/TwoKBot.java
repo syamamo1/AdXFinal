@@ -78,13 +78,8 @@ public class TwoKBot extends NDaysNCampaignsAgent {
 						bid, 
 						budgetLeft*bid // segment limit 
 					);
-				}
-
-				else { // Don't bid on segments that don't add to our reach
-					bidEntry = new SimpleBidEntry(m,0.0,1.0);
-				}
-
 				bids.add(bidEntry);
+				}
 			}
 		
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 

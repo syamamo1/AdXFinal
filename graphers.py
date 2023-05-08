@@ -10,13 +10,15 @@ def make_detailed_histograms(data, players):
     # Do weight = sum(profit_in_bin)/sum(profit)
 
     gtypes = ['Impressions/Reach', 'Effective Reach', 'Cost per Impression', 'Budget per Reach', 'Duration']
-    weights = []
+    bin_edges = np.histogram_bin_edges(data[players[0]]['profit'], bins=9)
+    fig1, axes1 = plt.subplots(5, 5, figsize=(13, 9))
+    fig2, axes2 = plt.subplots(5, 5, figsize=(13, 9))
     for player in players:
-        bin_edges = np.histogram_bin_edges(data[player]['profit'], bins=9)
+        weights = []
         bin_inds = np.digitize(data[player]['profit'], bin_edges, right=True)
+        if player == players[0]: num_bins = np.unique(bin_inds).shape[0]-1
 
         # All bin + first 4 bins
-        fig1, axes1 = plt.subplots(5, 5, figsize=(13, 9))
         bins = {}
         for row, ax_row in enumerate(axes1):
             for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
@@ -54,7 +56,6 @@ def make_detailed_histograms(data, players):
                         ax.set_ylabel(f'({start}, {end})', rotation = 90, size='large')
 
         # Now do next 5 bins
-        fig2, axes2 = plt.subplots(5, 5, figsize=(13, 9))
         bins = {}
         for row, ax_row in enumerate(axes2, start=4):
             for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
@@ -89,7 +90,8 @@ def make_detailed_histograms(data, players):
         
         # Print some stats
         total_flow = np.linalg.norm(data[player]['profit'], ord=1)
-        for bin_num in range(np.unique(bin_inds).shape[0]-1):
+        print('Bin distribution:')
+        for bin_num in range(num_bins):
             portion = np.linalg.norm(data[player]['profit'][bin_inds == bin_num+1], ord=1)
             weight = round(100*portion/total_flow, 1)
             weights.append(weight)
@@ -100,8 +102,10 @@ def make_detailed_histograms(data, players):
             num_instances = data[player]['profit'][bin_inds == bin_num+1].shape[0]
             print(f'({start}, {end}), Weight = {weight}, Instances = {num_instances}')
 
-        print('Total weight = ', sum(weights))
+        print('Total weight = ', round(sum(weights), 1), '\n')
 
+        axes1[0, 0].legend()
+        axes2[0, 0].legend()
         title1 = f'Weights = {[100] + weights[:4]}'
         title2 = f'Weights = {weights[4:]}'
         fig1.canvas.set_window_title(title1)

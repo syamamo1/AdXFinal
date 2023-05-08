@@ -137,31 +137,50 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			int endDay = c.getEndDay();
 			int day = getCurrentDay();
 
-			double bid;
 			double budgetPerImpression = (budget-moneySpent)/(reach-impressions);
 			// double dayRatio = (day - startDay + 0.5)/(endDay - startDay + 0.5);
 			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
-			bid = mapBid(budgetPerImpression*effectiveReachLeft);
-			bid = Math.max(bid, 0.5);
-			bid = Math.min(bid, 1.05);
+			
+			double bid = budgetPerImpression*effectiveReachLeft;
+			// bid = mapBid(budgetPerImpression*effectiveReachLeft);
+			// bid = Math.max(bid, 0.5);
+			// bid = Math.min(bid, 1.05);
 			// }
 
 			SimpleBidEntry bidEntry;
 			for(MarketSegment m : MarketSegment.values()) {
+				if (determineClass(marketSegment) == 2) {
+					if (MarketSegment.marketSegmentSubset(marketSegment, m) && !marketSegment.equals(m)) {
+						bidEntry = new SimpleBidEntry(
+							m, 
+							bid, 
+							budgetLeft*bid // segment limit 
+						);
+						bids.add(bidEntry);
+					}
+				}
+				
+				else if (determineClass(marketSegment) == 3) {
+					if (marketSegment.equals(m)) {
+						bidEntry = new SimpleBidEntry(
+							m, 
+							bid, 
+							budgetLeft*bid // segment limit 
+						);
+						bids.add(bidEntry);
+					}
+				}
+
 				// Our segment
-				if (marketSegment.equals(m)) {
-					bidEntry = new SimpleBidEntry(
-						m, 
-						bid, 
-						budgetLeft*bid // segment limit 
-					);
-				}
+				// if (marketSegment.equals(m)) {
+				// 	bidEntry = new SimpleBidEntry(
+				// 		m, 
+				// 		bid, 
+				// 		budgetLeft*bid // segment limit 
+				// 	);
+				// bids.add(bidEntry);
+				// }
 
-				else { // Don't bid on segments that don't add to our reach
-					bidEntry = new SimpleBidEntry(m,0.0,1.0);
-				}
-
-				bids.add(bidEntry);
 			}
 		
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 

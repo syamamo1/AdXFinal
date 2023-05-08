@@ -13,7 +13,7 @@ def get_players(solo, two, all):
         players = ['AlexSean']
 
     elif two: 
-        players = ['AlexSean', 'bot_1']
+        players = ['AlexSean', 'TwoKBot1']
 
     elif all:
         players = [
@@ -83,7 +83,7 @@ def compute_stats(campaigns, players, filename):
 def main():
     # Define players
     just_me = get_players(1, 0, 0)
-    me_and_bot1 = get_players(0, 1, 0)
+    me_and_2k = get_players(0, 1, 0)
     all_players = get_players(0, 0, 1)
 
     # Define filenames
@@ -96,9 +96,9 @@ def main():
     
     # Print results
     print(final_results)
-    compute_stats(campaigns, all_players, stats_filename)
-    make_general_histograms(histogram_data, me_and_bot1)
-    make_detailed_histograms(histogram_data, just_me)
+    # compute_stats(campaigns, all_players, stats_filename)
+    # make_general_histograms(histogram_data, me_and_2k)
+    make_detailed_histograms(histogram_data, me_and_2k)
     graph_performance(data, all_players)
 
 
