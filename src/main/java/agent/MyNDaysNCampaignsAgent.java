@@ -58,53 +58,31 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			int endDay = c.getEndDay();
 			int day = getCurrentDay();
 
-			double bid = 1;
-			// do something with the derivative here...
-			if (impressions > reach) {
-				bid = 0.001;
-			}
-			if (startDay == endDay) {
-				bid = 0.9;
-			}
-			else {
-				double num = (budget-moneySpent) * (day - startDay + 0.5);
-				double den = (reach-impressions) * (endDay - startDay + 0.5);
-				bid = Math.sin(num/den);
-				bid = Math.max(bid, 0.5);
-			}
+			double bid;
+			double budgetPerImpression = (budget-moneySpent)/(reach-impressions);
+			// double dayRatio = (day - startDay + 0.5)/(endDay - startDay + 0.5);
+			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
+			bid = mapBid(budgetPerImpression*effectiveReachLeft);
+			bid = Math.max(bid, 0.5);
+			bid = Math.min(bid, 1.05);
+			// }
 
-
+			SimpleBidEntry bidEntry;
 			for(MarketSegment m : MarketSegment.values()) {
 				// Our segment
 				if (marketSegment.equals(m)) {
-					SimpleBidEntry bidEntry = new SimpleBidEntry(
+					bidEntry = new SimpleBidEntry(
 						m, 
 						bid, 
-						budgetLeft // segment limit 
+						budgetLeft*bid // segment limit 
 					);
-					bids.add(bidEntry);
 				}
-
-				// Segments we are subsegments of (Tier 3 segments)
-				// else if (MarketSegment.marketSegmentSubset(marketSegment, m)) {
-				// 	double bid = 0.1;
-				// 	SimpleBidEntry bidEntry = new SimpleBidEntry(
-				// 		m, 
-				// 		bid*ratio, 
-				// 		budgetLeft*bid // segment limit 
-				// 	);
-				// 	bids.add(bidEntry);
-				// }
-
-				// if (m.equals(marketSegment)) {
-				// 	SimpleBidEntry bidEntry = new SimpleBidEntry(m,bid,bid*thisDayBudget);
-				// 	bids.add(bidEntry);			
-				// }
 
 				else { // Don't bid on segments that don't add to our reach
-					SimpleBidEntry bidEntry = new SimpleBidEntry(m,0.0,1.0);
-					bids.add(bidEntry);
+					bidEntry = new SimpleBidEntry(m,0.0,1.0);
 				}
+
+				bids.add(bidEntry);
 			}
 		
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
@@ -124,14 +102,142 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		// TODO: fill this in
 		
 		Map<Campaign, Double> bids = new HashMap<>();
+		// double qualityScore = getQualityScore();
 		
+		// If we win, smallest our budget can be is what we bid
+		double discount1 = 0.70;
+		double discount2 = 0.85;
+		double discount3 = 0.90;
 		for (Campaign c : campaignsForAuction) {
-			bids.put(c, c.getReach()*0.7);
+
+			int reach = c.getReach();
+			double ratio = 1;
+			MarketSegment marketSegment = c.getMarketSegment();
+			
+			// If campaigns up for auction overlap with each other
+			for (Campaign c0 : campaignsForAuction) {
+				if (c0.getId() != c.getId()) {
+					// Bidding on is more specific -> bid more aggressively
+					if (MarketSegment.marketSegmentSubset(marketSegment, c0.getMarketSegment())) {
+						ratio = ratio * discount1;
+					}			
+					// Bidding on is less specific -> bid less aggressively
+					else if (MarketSegment.marketSegmentSubset(c0.getMarketSegment(), marketSegment)) {
+						ratio = ratio * discount2;
+					}			
+					// If we have a campaign that partially overlaps with the current campaign
+					else if (hasPartialOverlap(marketSegment, c0.getMarketSegment())) {
+						ratio = ratio * discount3;
+					}
+				}
+			}
+
+			// If campaigns up for auction overlap with our active campaigns
+			for (Campaign myC : this.getActiveCampaigns()) {
+				// Bidding on is more specific -> bid more aggressively
+				if (MarketSegment.marketSegmentSubset(marketSegment, myC.getMarketSegment())) {
+					ratio = ratio * discount1;
+				}			
+				// Bidding on is less specific -> bid less aggressively
+				else if (MarketSegment.marketSegmentSubset(myC.getMarketSegment(), marketSegment)) {
+					ratio = ratio * discount2;
+				}			
+				// If we have a campaign that partially overlaps with the current campaign
+				else if (hasPartialOverlap(marketSegment, myC.getMarketSegment())) {
+					ratio = ratio * discount3;
+				}
+			
+			bids.put(c, reach*ratio);
+			}
 		}
 		
 		return bids;
 	}
 
+
+	// If at least one attribute is equal
+	public boolean hasPartialOverlap(MarketSegment m1, MarketSegment m2) throws AdXException {
+		
+		MarketSegment[] maleSegments = { MarketSegment.MALE_LOW_INCOME, MarketSegment.MALE_HIGH_INCOME, MarketSegment.MALE_OLD, MarketSegment.MALE_YOUNG };
+		MarketSegment[] femaleSegments = { MarketSegment.FEMALE_YOUNG, MarketSegment.FEMALE_OLD, MarketSegment.FEMALE_LOW_INCOME, MarketSegment.FEMALE_HIGH_INCOME };
+		MarketSegment[] youngSegments = { MarketSegment.FEMALE_YOUNG, MarketSegment.MALE_YOUNG, MarketSegment.YOUNG_LOW_INCOME, MarketSegment.YOUNG_HIGH_INCOME };
+		MarketSegment[] oldSegments = { MarketSegment.FEMALE_OLD, MarketSegment.MALE_OLD, MarketSegment.OLD_LOW_INCOME, MarketSegment.OLD_HIGH_INCOME };
+		MarketSegment[] lowIncomeSegments = { MarketSegment.MALE_LOW_INCOME, MarketSegment.FEMALE_LOW_INCOME, MarketSegment.YOUNG_LOW_INCOME, MarketSegment.OLD_LOW_INCOME };
+		MarketSegment[] highIncomeSegments = { MarketSegment.MALE_HIGH_INCOME, MarketSegment.FEMALE_HIGH_INCOME, MarketSegment.YOUNG_HIGH_INCOME, MarketSegment.OLD_HIGH_INCOME };
+		
+		MarketSegment[] sub1;
+		MarketSegment[] sub2;
+		if (m1.equals(MarketSegment.MALE_LOW_INCOME)) {
+			sub1 = maleSegments; sub2 = lowIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.MALE_HIGH_INCOME)) {
+			sub1 = maleSegments; sub2 = highIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.FEMALE_YOUNG)) {
+			sub1 = femaleSegments; sub2 = youngSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.FEMALE_OLD)) {
+			sub1 = femaleSegments; sub2 = oldSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.FEMALE_LOW_INCOME)) {
+			sub1 = femaleSegments; sub2 = lowIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.FEMALE_HIGH_INCOME)) {
+			sub1 = femaleSegments; sub2 = highIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.YOUNG_LOW_INCOME)) {
+			sub1 = youngSegments; sub2 = lowIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.YOUNG_HIGH_INCOME)) {
+			sub1 = youngSegments; sub2 = highIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.OLD_LOW_INCOME)) {
+			sub1 = oldSegments; sub2 = lowIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.OLD_HIGH_INCOME)) {
+			sub1 = oldSegments; sub2 = highIncomeSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.MALE_OLD)) {
+			sub1 = maleSegments; sub2 = oldSegments;
+			if (inArrays(m2, sub1, sub2)) { return true; }
+
+		} else if (m1.equals(MarketSegment.MALE_YOUNG)) {
+			sub1 = maleSegments; sub2 = youngSegments; 
+			if (inArrays(m2, sub1, sub2)) { return true; }
+		}
+		return false;
+	}
+		
+	// If (m1 subset m2) or (m2 subset m1)
+	public boolean inArrays(MarketSegment m, MarketSegment[] sub1, MarketSegment[] sub2) {
+		for (MarketSegment m2: sub1) {
+			if (m.equals(m2)) {
+				return true;
+			}
+		}
+		for (MarketSegment m2: sub2) {
+			if (m.equals(m2)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// Sigmoidal that has (0, 0.18), (1, 1) 
+	public double mapBid(double x) {
+		double exp = -Math.exp(2) * (x - 0.2);
+		return 1/(1 + Math.exp(exp));
+	}
 
 	// Takes in current impressions x, reach R
 	public double getDerivative(int x, int R) {
@@ -255,7 +361,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			MarketSegment.MALE_LOW_INCOME, MarketSegment.MALE_HIGH_INCOME, MarketSegment.FEMALE_YOUNG, 
 			MarketSegment.FEMALE_OLD, MarketSegment.FEMALE_LOW_INCOME, MarketSegment.FEMALE_HIGH_INCOME,
 			MarketSegment.YOUNG_LOW_INCOME, MarketSegment.YOUNG_HIGH_INCOME, MarketSegment.OLD_LOW_INCOME,
-			MarketSegment.OLD_HIGH_INCOME};
+			MarketSegment.OLD_HIGH_INCOME, MarketSegment.MALE_OLD, MarketSegment.MALE_YOUNG};
 
 		MarketSegment[] triples = {
 			MarketSegment.MALE_YOUNG_LOW_INCOME, MarketSegment.MALE_YOUNG_HIGH_INCOME, MarketSegment.MALE_OLD_LOW_INCOME, 
@@ -292,15 +398,15 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		if (args.length == 0) {
 			Map<String, AgentLogic> test_agents = new ImmutableMap.Builder<String, AgentLogic>()
 					.put(NAME, new MyNDaysNCampaignsAgent())
+					.put("TwoKBot1", new TwoKBot())
+					.put("TwoKBot2", new TwoKBot())
+					.put("TwoKBot3", new TwoKBot())
 					.put("bot_1", new Tier1NDaysNCampaignsAgent())
 					.put("bot_2", new Tier1NDaysNCampaignsAgent())
 					.put("bot_3", new Tier1NDaysNCampaignsAgent())
 					.put("bot_4", new Tier1NDaysNCampaignsAgent())
 					.put("bot_5", new Tier1NDaysNCampaignsAgent())
-					.put("bot_6", new Tier1NDaysNCampaignsAgent())
-					.put("bot_7", new Tier1NDaysNCampaignsAgent())
-					.put("bot_8", new Tier1NDaysNCampaignsAgent())
-					.put("bot_9", new Tier1NDaysNCampaignsAgent()).build();
+					.put("bot_6", new Tier1NDaysNCampaignsAgent()).build();
 
 			// Don't change this.
 			OfflineGameServer.initParams(new String[] { "offline_config.ini", "CS1951K-FINAL" });

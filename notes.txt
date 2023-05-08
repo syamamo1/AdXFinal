@@ -1,12 +1,11 @@
-General architecture:
-    1. Bid on campaigns based on some policy made by us
-    2. Use model that takes vector of size (~24) and outputs size (~20+20)
+Build script: mvn clean compile assembly:single test
+Submit scripts: /course/cs1440/bin/cs1440_handin AdXFinal
 
 Campaign: (segment, reach, budget, start, end)
 reach = budget for "free" campaigns
 statistics = {campaign #, (num impressions, dollars spent)}
 
-Level 1 TA bots bid 0.999 on just their segment
+Level 1 TA bots bid (budget-spent)/(reach-impressions):
     - we can beat this by bidding 0.9 on just our segment (no campaign bidding)
 
 Effective reach
@@ -16,6 +15,26 @@ Effective reach
 Quality Score:
     - QS_t+1 = (QS_t + ER) / 2
     - affects campaign bidding
+
+Effective Bid (for Campaigns):
+    - EB = bid/QS
+    - rewarded for higher quality score
+
+General Thoughts:
+    - We don't want every campaign, just good ones
+        - This reduces negative campaigns
+    - We want overlapping campaigns
+        - We can control the price
+    - Bid more when urgent (something sine-like)
+
+
+
+
+
+
+
+
+
 
 
 

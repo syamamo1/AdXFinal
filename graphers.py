@@ -5,29 +5,141 @@ from utils import effective_reach, extract_array
 
 
 
-# Histograms of campaign (impressions/reach), ER, costs
-def make_histograms(campaigns, players):
-    data = {}
+# Breaks up into 9 bins by profit level
+def make_detailed_histograms(data, players):
+    # Do weight = sum(profit_in_bin)/sum(profit)
+
+    gtypes = ['Impressions/Reach', 'Effective Reach', 'Cost per Impression', 'Budget per Reach', 'Duration']
+    weights = []
     for player in players:
-        player_dict = campaigns[player]
+        bin_edges = np.histogram_bin_edges(data[player]['profit'], bins=9)
+        bin_inds = np.digitize(data[player]['profit'], bin_edges, right=True)
 
-        data[player] = {}
-        data[player]['impressions'] = extract_array(player_dict, 'impressions')
-        data[player]['reach'] = extract_array(player_dict, 'reach')
-        data[player]['er'] = np.vectorize(effective_reach)(data[player]['impressions'], data[player]['reach'])
-        data[player]['budget'] = extract_array(player_dict, 'budget')
-        data[player]['cost'] = extract_array(player_dict, 'cost')
-        data[player]['profit'] = data[player]['er']*data[player]['budget'] - data[player]['cost']
+        # All bin + first 4 bins
+        fig1, axes1 = plt.subplots(5, 5, figsize=(13, 9))
+        bins = {}
+        for row, ax_row in enumerate(axes1):
+            for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
+                
+                inds = (bin_inds == row)
+                
+                if col == 0: # Impressions/Reach
+                    x = data[player]['impressions']/data[player]['reach']
+                elif col == 1: # Effective Reach
+                    x = data[player]['er']
+                elif col == 2: # Cost per Impression
+                    non_z = data[player]['impressions'] != 0
+                    x = data[player]['cost'][non_z]/data[player]['impressions'][non_z]
+                    inds = inds[non_z]
+                elif col == 3: # Budget per Reach
+                    x = data[player]['budget/reach']
+                elif col == 4: # Duration
+                    x = data[player]['duration']
+                
+                if row == 0: 
+                    inds = np.ones_like(x, dtype=bool)
+                    bins[gtype] = np.histogram_bin_edges(x, bins=20)
 
-        data[player]['inds'] = {}
-        data[player]['inds']['All'] = np.ones_like(data[player]['profit'], dtype=bool)
-        data[player]['inds']['Profitable'] = data[player]['profit'] > 0
-        data[player]['inds']['Neg. Profit'] = data[player]['profit'] < 0
-        data[player]['inds']['0 Profit'] = data[player]['profit'] == 0
+                ax.hist(x[inds], bins=bins[gtype], alpha=0.5, label=player, edgecolor='black')
 
-    fig, axes = plt.subplots(4, 4, figsize=(8, 8))
+                # ax.legend()
+                if row == 0: 
+                    ax.set_title(gtype)
+                if col == 0: 
+                    if row == 0:
+                        ax.set_ylabel('All', rotation = 90, size='large')
+                    else:
+                        start = round(bin_edges[row-1], -1)
+                        end = round(bin_edges[row], -1)
+                        ax.set_ylabel(f'({start}, {end})', rotation = 90, size='large')
+
+        # Now do next 5 bins
+        fig2, axes2 = plt.subplots(5, 5, figsize=(13, 9))
+        bins = {}
+        for row, ax_row in enumerate(axes2, start=4):
+            for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
+                
+                inds = (bin_inds == row+1)
+                
+                if col == 0: # Impressions/Reach
+                    x = data[player]['impressions']/data[player]['reach']
+                elif col == 1: # Effective Reach
+                    x = data[player]['er']
+                elif col == 2: # Cost per Impression
+                    non_z = data[player]['impressions'] != 0
+                    x = data[player]['cost'][non_z]/data[player]['impressions'][non_z]
+                    inds = inds[non_z]
+                elif col == 3: # Budget per Reach
+                    x = data[player]['budget/reach']
+                elif col == 4: # Duration
+                    x = data[player]['duration']
+                
+                if row == 4: 
+                    bins[gtype] = np.histogram_bin_edges(x, bins=20)
+
+                ax.hist(x[inds], bins=bins[gtype], alpha=0.5, label=player, edgecolor='black')
+
+                # ax.legend()
+                if row == 4: 
+                    ax.set_title(gtype)
+                if col == 0:
+                    start = round(bin_edges[row], -1)
+                    end = round(bin_edges[row+1], -1)
+                    ax.set_ylabel(f'({start}, {end})', rotation = 90, size='large')
+        
+        # Print some stats
+        total_flow = np.linalg.norm(data[player]['profit'], ord=1)
+        for bin_num in range(np.unique(bin_inds).shape[0]-1):
+            portion = np.linalg.norm(data[player]['profit'][bin_inds == bin_num+1], ord=1)
+            weight = round(100*portion/total_flow, 1)
+            weights.append(weight)
+
+            start = round(bin_edges[bin_num], -1)
+            end = round(bin_edges[bin_num+1], -1)
+            ax.set_ylabel(f'({start}-{end})', rotation = 90, size='large')
+            num_instances = data[player]['profit'][bin_inds == bin_num+1].shape[0]
+            print(f'({start}, {end}), Weight = {weight}, Instances = {num_instances}')
+
+        print('Total weight = ', sum(weights))
+
+        title1 = f'Weights = {[100] + weights[:4]}'
+        title2 = f'Weights = {weights[4:]}'
+        fig1.canvas.set_window_title(title1)
+        fig2.canvas.set_window_title(title2)
+
+    # Rows 1,2,3,4,5 share x-axis
+    # Rows 2,3,4,5 share y-axis
+    for j in range(axes1.shape[1]):
+        x1_ax_list = [axes1[i, j] for i in range(0, axes1.shape[0])]
+        shared_x_axes = axes1[0, j].get_shared_x_axes()
+        shared_x_axes.join(*x1_ax_list)
+
+        # y1_ax_list = [axes1[i, j] for i in range(1, axes1.shape[0])]
+        # shared_y_axes = axes1[1, j].get_shared_y_axes()
+        # shared_y_axes.join(*y1_ax_list)
+
+        x2_ax_list = [axes2[i, j] for i in range(0, axes2.shape[0])]
+        shared_x_axes = axes1[0, j].get_shared_x_axes()
+        shared_x_axes.join(*x2_ax_list)
+
+        # y2_ax_list = [axes2[i, j] for i in range(1, axes2.shape[0])]
+        # shared_y_axes = axes1[1, j].get_shared_y_axes()
+        # shared_y_axes.join(*y2_ax_list)
+                    
+    fig1.tight_layout()
+    fig2.tight_layout()
+
+    plt.show()
+
+
+    
+
+# Only does all, profitable, and negative profitable
+def make_general_histograms(data, players):
+    fig, axes = plt.subplots(4, 6, figsize=(13, 9))
     subgroups = ['All', 'Profitable', 'Neg. Profit', '0 Profit']
-    gtypes = ['Profit', 'Impressions/Reach', 'Effective Reach', 'Cost per Impression']
+    gtypes = ['Profit', 'Impressions/Reach', 'Effective Reach', 'Cost per Impression', 'Budget per Reach', 'Duration']
+    bins = {}
     for row, (ax_row, subgroup) in enumerate(zip(axes, subgroups)):
         for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
             for player in players:
@@ -43,23 +155,30 @@ def make_histograms(campaigns, players):
                     non_z = data[player]['impressions'] != 0
                     x = data[player]['cost'][non_z]/data[player]['impressions'][non_z]
                     inds = inds[non_z]
-                    
-                ax.hist(x[inds], bins=20, alpha=0.5, label=player)
+                elif col == 4: # Budget per Reach
+                    x = data[player]['budget/reach']
+                elif col == 5: # Duration
+                    x = data[player]['duration']
+                
+                if row == 0: 
+                    bins[gtype] = np.histogram_bin_edges(x, bins=20)
+
+                ax.hist(x[inds], bins=bins[gtype], alpha=0.5, label=player, edgecolor='black')
 
             ax.legend()
             if row == 0: ax.set_title(gtype)
             if col == 0: ax.set_ylabel(subgroup, rotation = 90, size='large')
 
-    # Rows 1,2,3 share x-axis
-    # Cols 2,3 share y-axis
+    # Rows 1,2,3,4 share x-axis
+    # Rows 2,3 share y-axis
     for j in range(axes.shape[1]):
+        x_ax_list = [axes[i, j] for i in range(0, axes.shape[0])]
+        shared_x_axes = axes[0, j].get_shared_x_axes()
+        shared_x_axes.join(*x_ax_list)
+
         y_ax_list = [axes[i, j] for i in range(1, axes.shape[0]-1)]
         shared_y_axes = axes[1, j].get_shared_y_axes()
         shared_y_axes.join(*y_ax_list)
-
-        x_ax_list = [axes[i, j] for i in range(0, axes.shape[0]-1)]
-        shared_x_axes = axes[0, j].get_shared_x_axes()
-        shared_x_axes.join(*x_ax_list)
                     
     fig.tight_layout()
     plt.show()
@@ -67,7 +186,7 @@ def make_histograms(campaigns, players):
 
 # Graph quality scores, cumulative profits
 def graph_performance(data, players):
-    _, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
     
     for player in players:
         x = np.arange(11) + 1
@@ -79,22 +198,23 @@ def graph_performance(data, players):
         cp_std = np.std(cp, axis=0) 
 
         if player == 'AlexSean':
-            ax1.errorbar(x, qs_mean, yerr=qs_std, marker = '.', linestyle = 'dashed', label=player)
-            ax2.errorbar(x, cp_mean, yerr=cp_std, marker = '.', linestyle = 'dashed', label=player)
+            ax1.errorbar(x, cp_mean, yerr=cp_std, marker = '.', linestyle = 'dashed', label=player)
+            ax2.errorbar(x, qs_mean, yerr=qs_std, marker = '.', linestyle = 'dashed', label=player)
         else:
-            ax1.plot(x, qs_mean, label=player)
-            ax2.plot(x, cp_mean, label=player)
+            ax1.plot(x, cp_mean, label=player)
+            ax2.plot(x, qs_mean, label=player)
 
-    ax1.set_title('Quality Score')
+    ax1.set_title('Cumulative Profit')
     ax1.legend()
     ax1.grid(True)
-    ax1.set_ylim(-0.05, None)
+    ax1.set_xlabel('Day')
 
-    ax2.set_title('Cumulative Profit')
+    ax2.set_title('Quality Score')
     ax2.legend()
     ax2.grid(True)
-    ax2.set_xlabel('Day')
+    ax2.set_ylim(-0.05, None)
 
+    fig.subplots_adjust(hspace=0.5)
     plt.show()
 
 

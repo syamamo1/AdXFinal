@@ -5,12 +5,12 @@ import re
 
 # Return dict[player] = dict2
 # dict2[attribute] = 1D/2D numpy array
-def get_data(filename):
+def get_data(filename, players):
     clean(filename)
     games, final_results = get_games(filename)
 
     delim = ' EndOfDayMessage: '
-    data, campaigns = init_data()
+    data, campaigns = init_data(players)
     # Iterate games
     for game_num, game in enumerate(games):
 
@@ -107,14 +107,10 @@ def save_campaign_info(campaigns, new_campaigns, campaigns_temp, player, game_nu
 
 # Initialize data - dict of dicts to store game data
 # Initializes campagins - dict of dicts to store campaigns
-def init_data():
+def init_data(players):
     data = {}
     campaigns = {}
-    for i in range(0, 10):
-        if i == 0:
-            player = 'AlexSean'
-        else:
-            player = f'bot_{i}'
+    for player in players:
 
         # 500 games, each 11 days long
         quality_scores = np.zeros((500, 11))
@@ -146,7 +142,6 @@ def get_games(filename):
     final_results = games[-2]
     games = games[:-2] # get rid of beginning
 
-    print(final_results)
     assert len(games)==500, f'There should be 500 games. Found {len(games)}'
     return games, final_results
 

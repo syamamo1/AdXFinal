@@ -1,6 +1,30 @@
 import numpy as np
 from math import atan
 
+def get_histogram_data(campaigns, players):
+    data = {}
+    for player in players:
+        player_dict = campaigns[player]
+
+        data[player] = {}
+        data[player]['impressions'] = extract_array(player_dict, 'impressions')
+        data[player]['reach'] = extract_array(player_dict, 'reach')
+        data[player]['er'] = np.vectorize(effective_reach)(data[player]['impressions'], data[player]['reach'])
+        data[player]['budget'] = extract_array(player_dict, 'budget')
+        data[player]['cost'] = extract_array(player_dict, 'cost')
+        data[player]['profit'] = data[player]['er']*data[player]['budget'] - data[player]['cost']
+        data[player]['budget/reach'] = data[player]['budget']/data[player]['reach']
+        data[player]['duration'] = extract_array(player_dict, 'endDay') - extract_array(player_dict, 'startDay') + 1
+
+        data[player]['inds'] = {}
+        data[player]['inds']['All'] = np.ones_like(data[player]['profit'], dtype=bool)
+        data[player]['inds']['Profitable'] = data[player]['profit'] > 0
+        data[player]['inds']['Neg. Profit'] = data[player]['profit'] < 0
+        data[player]['inds']['0 Profit'] = data[player]['profit'] == 0
+
+    return data
+
+
 # [0, 1.38442]
 def effective_reach(impressions, reach):
     a = 4.08577
