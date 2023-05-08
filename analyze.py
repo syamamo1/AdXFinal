@@ -98,7 +98,7 @@ def main():
     print(final_results)
     compute_stats(campaigns, all_players, stats_filename)
     make_general_histograms(histogram_data, just_me)
-    # make_detailed_histograms(histogram_data, just_me)
+    make_detailed_histograms(histogram_data, just_me)
     graph_performance(data, all_players)
 
 
