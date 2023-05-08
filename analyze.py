@@ -92,12 +92,12 @@ def main():
 
     # Get data
     data, campaigns, final_results = get_data(log_filename, all_players)
-    histogram_data = get_histogram_data(campaigns, just_me)
+    histogram_data = get_histogram_data(campaigns, all_players)
     
     # Print results
     print(final_results)
     compute_stats(campaigns, all_players, stats_filename)
-    make_general_histograms(histogram_data, just_me)
+    make_general_histograms(histogram_data, me_and_bot1)
     make_detailed_histograms(histogram_data, just_me)
     graph_performance(data, all_players)
 
