@@ -142,10 +142,10 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
 			
 			double bid = budgetPerImpression*effectiveReachLeft;
-			// bid = mapBid(budgetPerImpression*effectiveReachLeft);
-			// bid = Math.max(bid, 0.5);
-			// bid = Math.min(bid, 1.05);
-			// }
+			bid = mapBid(budgetPerImpression*effectiveReachLeft);
+			bid = Math.max(bid, 0.5);
+			bid = Math.min(bid, 1.05);
+			
 
 			SimpleBidEntry bidEntry;
 			for(MarketSegment m : MarketSegment.values()) {
@@ -171,16 +171,6 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 					}
 				}
 
-				// Our segment
-				// if (marketSegment.equals(m)) {
-				// 	bidEntry = new SimpleBidEntry(
-				// 		m, 
-				// 		bid, 
-				// 		budgetLeft*bid // segment limit 
-				// 	);
-				// bids.add(bidEntry);
-				// }
-
 			}
 		
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
@@ -202,48 +192,46 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		// double qualityScore = getQualityScore();
 		
 		// If we win, smallest our budget can be is what we bid
-		double discount1 = 0.70;
-		double discount2 = 0.85;
-		double discount3 = 0.90;
+		double equalDiscount = 0.50; // change this to > 1 if we want to penalize overlap
+		double subsetDiscount = 0.70;
 		for (Campaign c : campaignsForAuction) {
+			double ratio = 1; // replace this with demand...
 
-			int reach = c.getReach();
-			double ratio = 1;
 			MarketSegment marketSegment = c.getMarketSegment();
-			
-			// If campaigns up for auction overlap with each other
-			for (Campaign c0 : campaignsForAuction) {
-				if (c0.getId() != c.getId()) {
-					// Bidding on is more specific -> bid more aggressively
-					if (MarketSegment.marketSegmentSubset(marketSegment, c0.getMarketSegment())) {
-						ratio = ratio * discount1;
-					}			
-					// Bidding on is less specific -> bid less aggressively
-					else if (MarketSegment.marketSegmentSubset(c0.getMarketSegment(), marketSegment)) {
-						ratio = ratio * discount2;
-					}			
-					// If we have a campaign that partially overlaps with the current campaign
-					else if (hasPartialOverlap(marketSegment, c0.getMarketSegment())) {
-						ratio = ratio * discount3;
-					}
-				}
-			}
+			int reach = c.getReach();
+			int inSegment = numberUsers(marketSegment);
+			int campaignClass = determineClass(marketSegment);
+
+			// We want class 2
+			// if (campaignClass == 2) {
+			// 	ratio = 0.90 * ratio;
+			// }
+
+			// We prefer campaigns that have small reaches (helps QS)
+			// (0.84, 0.93, 1) for deltas (0.3, 0.5, 0.7)
+			// double reachRatio = Math.pow((double)reach/((double)inSegment*0.7), 0.2);
+			// ratio = reachRatio * ratio;
 
 			// If campaigns up for auction overlap with our active campaigns
 			for (Campaign myC : this.getActiveCampaigns()) {
-				// Bidding on is more specific -> bid more aggressively
-				if (MarketSegment.marketSegmentSubset(marketSegment, myC.getMarketSegment())) {
-					ratio = ratio * discount1;
+				MarketSegment myMarketSegment = myC.getMarketSegment();
+
+				// Same segment 
+				if (myMarketSegment.equals(marketSegment)) {
+					ratio = ratio * equalDiscount;
 				}			
-				// Bidding on is less specific -> bid less aggressively
-				else if (MarketSegment.marketSegmentSubset(myC.getMarketSegment(), marketSegment)) {
-					ratio = ratio * discount2;
+
+				// Ours subset auction OR auction subset ours 
+				else if (MarketSegment.marketSegmentSubset(myMarketSegment, marketSegment) || 
+				MarketSegment.marketSegmentSubset(marketSegment, myMarketSegment)) {
+					ratio = ratio * subsetDiscount;
 				}			
-				// If we have a campaign that partially overlaps with the current campaign
-				else if (hasPartialOverlap(marketSegment, myC.getMarketSegment())) {
-					ratio = ratio * discount3;
-				}
 			
+			// Make sure bid is between 0.1 and 1
+			double bid = reach * ratio;
+			bid = Math.max(bid, 0.1*reach);
+			bid = Math.min(bid, 1*reach);
+			System.out.println("Segment, ratio, bid, reach: " + marketSegment + ", " + ratio + ", " + bid + ", " + reach);
 			bids.put(c, reach*ratio);
 			}
 		}
@@ -386,6 +374,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		PrintStream stream = new PrintStream(file);
 		System.out.println("\nSaving console to "+file.getAbsolutePath());
 		System.setOut(stream);
+
         LocalTime currentTime = LocalTime.now();
         System.out.println("Current time: " + currentTime);
 	  }
