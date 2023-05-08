@@ -18,8 +18,8 @@ def get_players(solo, two, all):
     elif all:
         players = [
             'AlexSean',
-            'TwoKBot1',
-            'TwoKBot2',
+#            'TwoKBot1',
+#            'TwoKBot2',
             'bot_1',
             'bot_2',
             'bot_3',
@@ -27,6 +27,8 @@ def get_players(solo, two, all):
             'bot_5',
             'bot_6',
             'bot_7',
+            'bot_8',
+            'bot_9',
         ]
 
     return players

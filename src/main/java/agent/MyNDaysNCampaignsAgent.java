@@ -128,9 +128,10 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		
 		int currentDay = this.getCurrentDay();
 		
-		// Determine which campaigns are of interest to us
 		
-		for (Campaign c : this.getActiveCampaigns()) {
+		Set<Campaign> activeCampaigns = this.getActiveCampaigns();
+		
+		for (Campaign c : activeCampaigns) {
 			Set<SimpleBidEntry> bids = new HashSet<>();
 			double budget = c.getBudget();
 			int reach = c.getReach();
@@ -138,10 +139,9 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			int impressions = getCumulativeReach(c);
 			
 			double budgetLeft = Math.max((budget-moneySpent), 1);
-			double budgetPerImpression = (budget-moneySpent)/(reach-impressions);
+			double budgetPerImpression = Math.max((budget-moneySpent)/(reach-impressions), 0.01);
 			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
 
-			
 			MarketSegment m = c.getMarketSegment();
 			
 			ArrayList<SegmentTuple> segments = new ArrayList<>();
@@ -154,7 +154,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 						    .mapToDouble(a -> a)
 						    .sum();
 					
-					double playersExceptSelf = Math.max(0,  sum-1);
+					double playersExceptSelf = Math.max(0.01,  sum-1);
 					double expectedBid = playersExceptSelf / (playersExceptSelf+1);
 					
 					SegmentTuple t = new SegmentTuple(s, expectedBid);
@@ -164,9 +164,10 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			
 			for (SegmentTuple t : segments) {
 				double expectedBid = t.getExpectedBid();
-				double bid = expectedBid * effectiveReachLeft * budgetPerImpression;
+				double inverse = 1/expectedBid;
+				double bid = inverse * effectiveReachLeft;
 				bid = Math.max(bid, 0.5);
-				bid = Math.min(bid, 1.0);
+				bid = Math.min(bid, budgetPerImpression);
 				
 				SimpleBidEntry bidEntry = new SimpleBidEntry(
 					t.getMarketSegment(), 
@@ -177,65 +178,17 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 				bids.add(bidEntry);
 			}
 			
-//			Collections.sort(segments);
-			
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
 				c.getId(), 
-				budgetLeft, // campaign limit
+				budgetLeft / c.getEndDay() - currentDay + 1, // campaign limit
 				bids
 			);
 		
 			bundles.add(bundle);
 		}
-//		
-//		for (Campaign c : this.getActiveCampaigns()) {
-//
-//			Set<SimpleBidEntry> bids = new HashSet<>();
-//			MarketSegment marketSegment = c.getMarketSegment();
-//			double budget = c.getBudget();
-//			int reach = c.getReach();
-//			double moneySpent = getCumulativeCost(c);
-//			int impressions = getCumulativeReach(c);
-//			double budgetLeft = Math.max((budget-moneySpent), 1);
-//			int startDay = c.getStartDay();
-//			int endDay = c.getEndDay();
-//			int day = getCurrentDay();
-//
-//			double bid;
-//			double budgetPerImpression = (budget-moneySpent)/(reach-impressions);
-//			// double dayRatio = (day - startDay + 0.5)/(endDay - startDay + 0.5);
-//			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
-//			bid = mapBid(budgetPerImpression*effectiveReachLeft);
-//			bid = Math.max(bid, 0.5);
-//			bid = Math.min(bid, 1.05);
-//			// }
-//
-//			SimpleBidEntry bidEntry;
-//			for(MarketSegment m : MarketSegment.values()) {
-//				// Our segment
-//				if (marketSegment.equals(m)) {
-//					bidEntry = new SimpleBidEntry(
-//						m, 
-//						bid,
-//						budgetLeft*bid // segment limit 
-//					);
-//				}
-//
-//				else { // Don't bid on segments that don't add to our reach
-//					bidEntry = new SimpleBidEntry(m,0.0,1.0);
-//				}
-//
-//				bids.add(bidEntry);
-//			}
-//		
-//			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
-//				c.getId(), 
-//				budgetLeft*bid, // campaign limit
-//				bids
-//			);
-//			
-//			bundles.add(bundle);
-//		}
+		
+		// If we are competing with ourself reduce the bid associated with the less urgent campaign to zero
+
 
 		return bundles;
 	}
@@ -572,15 +525,18 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		if (args.length == 0) {
 			Map<String, AgentLogic> test_agents = new ImmutableMap.Builder<String, AgentLogic>()
 					.put(NAME, new MyNDaysNCampaignsAgent())
-					.put("TwoKBot1", new TwoKBot())
-					.put("TwoKBot2", new TwoKBot())
+//					.put("TwoKBot1", new TwoKBot())
+//					.put("TwoKBot2", new TwoKBot())
 					.put("bot_1", new Tier1NDaysNCampaignsAgent())
 					.put("bot_2", new Tier1NDaysNCampaignsAgent())
 					.put("bot_3", new Tier1NDaysNCampaignsAgent())
 					.put("bot_4", new Tier1NDaysNCampaignsAgent())
 					.put("bot_5", new Tier1NDaysNCampaignsAgent())
 					.put("bot_6", new Tier1NDaysNCampaignsAgent())
-					.put("bot_7", new Tier1NDaysNCampaignsAgent()).build();
+					.put("bot_7", new Tier1NDaysNCampaignsAgent())
+					.put("bot_8", new Tier1NDaysNCampaignsAgent())
+					.put("bot_9", new Tier1NDaysNCampaignsAgent())
+					.build();
 
 			// Don't change this.
 			OfflineGameServer.initParams(new String[] { "offline_config.ini", "CS1951K-FINAL" });
