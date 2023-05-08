@@ -1,10 +1,13 @@
 package agent;
 
+import java.util.Collections;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.ArrayList;
 import java.io.File;
 import java.io.PrintStream;
 import java.time.LocalTime;
@@ -27,23 +30,99 @@ import adx.variants.ndaysgame.Tier1NDaysNCampaignsAgent;
 
 public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 	private static final String NAME = "AlexSean"; // TODO: enter a name. please remember to submit the Google form.
+	private final int NUMBER_OF_DAYS = 10;
+	private final int NUMBER_OF_PLAYERS = 10;
+	private Map<MarketSegment, Map<Integer, List<Double>>> map;
 
 	public MyNDaysNCampaignsAgent() {
-		// TODO: fill this in (if necessary)
 		redirectPrints();
+		// Initialize
+		map = new HashMap<>();
 	}
 	
 	@Override
 	protected void onNewGame() {
-		// TODO: fill this in (if necessary)
-		
+		try {
+			map.clear();
+			
+			int numberOfCampaignSegments = MarketSegment.values().length - 6;
+			double probOfCampaignSegment = 1.0 / ((double)numberOfCampaignSegments);
+			
+			for (MarketSegment m : MarketSegment.values()) {
+				if (this.determineClass(m) == 3) {
+					Map<Integer, List<Double>> days = new HashMap<>();
+					for(int day = 1; day <= NUMBER_OF_DAYS; day++) {
+						List<Double> probabilities = new ArrayList<>();
+						days.put(day, probabilities);
+					}
+					map.put(m, days);
+				}
+			}
+			
+			// For each day in the auction, there is p = min(1, Q) chance that each player is 
+			// assigned a 1 day random auction. Q is approximated by an exponential decay 
+			// function.
+			for (MarketSegment m : MarketSegment.values()) {
+				if (this.determineClass(m) >= 2) {
+					Set<MarketSegment> subsets = this.getMarketSubsets(m);
+					for(int day = 1; day <= NUMBER_OF_DAYS; day++) {
+						double expectedNumberOfFreeAuctions = NUMBER_OF_PLAYERS * this.getApproximateQ(day);
+						for(MarketSegment s : subsets) {
+							if (this.determineClass(s) == 3) {
+								this.map.get(s).get(day).addAll(Collections.nCopies((int)expectedNumberOfFreeAuctions, probOfCampaignSegment));
+							}
+						}
+					}
+				}
+			}
+			
+//			for(MarketSegment m: MarketSegment.values()) {
+//				if (this.determineClass(m) == 3) {
+//					for(int day = 0; day < numberOfDays; day++) { 
+//						System.out.print("Market Segment " + m + " day " + day + ": ");
+//						for(Double prob: this.map.get(m).get(day)) {
+//							System.out.print(prob + " ");
+//						}
+//						System.out.println("");
+//					}
+//				}
+//			}
+		} catch(Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	private double getApproximateQ(int day) {
+		return Math.exp(-0.1 * ((double)(day-1)));
 	}
 	
 	@Override
 	protected Set<NDaysAdBidBundle> getAdBids() throws AdXException {
-		// TODO: fill this in
-		
 		Set<NDaysAdBidBundle> bundles = new HashSet<>();
+		
+		int currentDay = this.getCurrentDay();
+		
+		for (Campaign c : this.getActiveCampaigns()) {
+			MarketSegment m = c.getMarketSegment();
+			
+			Map<MarketSegment, Double> expectedMaxBids = new HashMap<>();
+			
+			Set<MarketSegment> subsets = this.getMarketSubsets(m);
+			for (MarketSegment s: subsets) {
+				if (this.determineClass(s) == 3) {
+					List<Double> probabilities = this.map.get(s).get(currentDay);
+					
+					double sum = probabilities.stream()
+						    .mapToDouble(a -> a)
+						    .sum();
+					// Assumes other bidders use a uniform distribution between 0 and 1. Can 
+					// probably switch to something more sophisticated.
+					double excludingSelf = Math.max(0, sum - 1);
+					double expectedMaxBid = excludingSelf / (excludingSelf + 1);
+					expectedMaxBids.put(s, expectedMaxBid);
+				}
+			}
+		}
 		
 		for (Campaign c : this.getActiveCampaigns()) {
 
@@ -121,15 +200,44 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 
 	@Override
 	protected Map<Campaign, Double> getCampaignBids(Set<Campaign> campaignsForAuction) throws AdXException {
-		// TODO: fill this in
-		
+
 		Map<Campaign, Double> bids = new HashMap<>();
 		
 		for (Campaign c : campaignsForAuction) {
 			bids.put(c, c.getReach()*0.7);
 		}
 		
+		// Based on the campaigns that are being auctioned off, update our map
+		for (Campaign c : campaignsForAuction) {
+			MarketSegment m = c.getMarketSegment();
+			int endDay = c.getEndDay();
+			int currentDay = this.getCurrentDay();
+			
+			Set<MarketSegment> subsets = this.getMarketSubsets(m);
+			for(int day = currentDay; day <= endDay; day++) {
+				for(MarketSegment s : subsets) {
+					if (this.determineClass(s) == 3) {
+						// For each day that the auction is live, we know that there will be demand on this
+						// market segment
+						this.map.get(s).get(day).add(1.0);
+					}
+				}
+			}
+		}
+		
 		return bids;
+	}
+	
+	private Set<MarketSegment> getMarketSubsets(MarketSegment segment) throws AdXException {
+		Set<MarketSegment> segments = new HashSet<>();
+		
+		for(MarketSegment m: MarketSegment.values()) {
+			if (MarketSegment.marketSegmentSubset(segment, m)) {
+				segments.add(m);
+			}
+		}
+		
+		return segments;
 	}
 
 
@@ -255,7 +363,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			MarketSegment.MALE_LOW_INCOME, MarketSegment.MALE_HIGH_INCOME, MarketSegment.FEMALE_YOUNG, 
 			MarketSegment.FEMALE_OLD, MarketSegment.FEMALE_LOW_INCOME, MarketSegment.FEMALE_HIGH_INCOME,
 			MarketSegment.YOUNG_LOW_INCOME, MarketSegment.YOUNG_HIGH_INCOME, MarketSegment.OLD_LOW_INCOME,
-			MarketSegment.OLD_HIGH_INCOME};
+			MarketSegment.OLD_HIGH_INCOME, MarketSegment.MALE_OLD, MarketSegment.MALE_YOUNG};
 
 		MarketSegment[] triples = {
 			MarketSegment.MALE_YOUNG_LOW_INCOME, MarketSegment.MALE_YOUNG_HIGH_INCOME, MarketSegment.MALE_OLD_LOW_INCOME, 
@@ -289,6 +397,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		// a) It's much faster than the online test; don't worry if there's no delays.
 		// b) You should still run the test script mentioned in the handout to make sure
 		// your agent works online.
+		
 		if (args.length == 0) {
 			Map<String, AgentLogic> test_agents = new ImmutableMap.Builder<String, AgentLogic>()
 					.put(NAME, new MyNDaysNCampaignsAgent())
