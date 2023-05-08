@@ -32,7 +32,7 @@ public class TwoKBot extends NDaysNCampaignsAgent {
 
 	public TwoKBot() {
 		// TODO: fill this in (if necessary)
-		redirectPrints();
+//		redirectPrints();
 	}
 	
 	@Override
