@@ -61,7 +61,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 	private Map<MarketSegment, Map<Integer, List<Double>>> map;
 
 	public MyNDaysNCampaignsAgent() {
-//		redirectPrints();
+		redirectPrints();
 		// Initialize
 		map = new HashMap<>();
 	}
@@ -137,14 +137,10 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			double moneySpent = getCumulativeCost(c);
 			int impressions = getCumulativeReach(c);
 			
-			
 			double budgetLeft = Math.max((budget-moneySpent), 1);
-			double bid;
 			double budgetPerImpression = (budget-moneySpent)/(reach-impressions);
 			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
-			bid = mapBid(budgetPerImpression*effectiveReachLeft);
-			bid = Math.max(bid, 0.5);
-			bid = Math.min(bid, 1.05);
+
 			
 			MarketSegment m = c.getMarketSegment();
 			
@@ -166,32 +162,30 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 				}
 			}
 			
-			Collections.sort(segments);
+			for (SegmentTuple t : segments) {
+				double expectedBid = t.getExpectedBid();
+				double bid = expectedBid * effectiveReachLeft * budgetPerImpression;
+				bid = Math.max(bid, 0.5);
+				bid = Math.min(bid, 1.0);
+				
+				SimpleBidEntry bidEntry = new SimpleBidEntry(
+					t.getMarketSegment(), 
+					bid, 
+					budgetLeft*bid // segment limit 
+				);
+				
+				bids.add(bidEntry);
+			}
 			
-//			System.out.println(segments);
+//			Collections.sort(segments);
 			
-//			for(MarketSegment segment: MarketSegment.values()) {
-//				SimpleBidEntry bidEntry;
-//				
-//				if (segment.equals(bestAvailable)) {
-//					bidEntry = new SimpleBidEntry(
-//						segment, 
-//						bid, 
-//						budgetLeft*bid // segment limit 
-//					);
-//				} else { // Don't bid on segments that don't add to our reach
-//					bidEntry = new SimpleBidEntry(segment, 0.0, 1.0);
-//				}
-//				bids.add(bidEntry);
-//			}
-//			
-//			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
-//				c.getId(), 
-//				budgetLeft*bid, // campaign limit
-//				bids
-//			);
-//		
-//			bundles.add(bundle);
+			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
+				c.getId(), 
+				budgetLeft, // campaign limit
+				bids
+			);
+		
+			bundles.add(bundle);
 		}
 //		
 //		for (Campaign c : this.getActiveCampaigns()) {
