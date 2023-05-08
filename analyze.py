@@ -20,13 +20,13 @@ def get_players(solo, two, all):
             'AlexSean',
             'TwoKBot1',
             'TwoKBot2',
-            'TwoKBot3',
             'bot_1',
             'bot_2',
             'bot_3',
             'bot_4',
             'bot_5',
             'bot_6',
+            'bot_7',
         ]
 
     return players

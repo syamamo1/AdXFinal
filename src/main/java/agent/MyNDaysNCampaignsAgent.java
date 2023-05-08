@@ -264,6 +264,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 
 
 	// If at least one attribute is equal
+	// for example, both have "OLD" or "RICH"
 	public boolean hasPartialOverlap(MarketSegment m1, MarketSegment m2) throws AdXException {
 		
 		MarketSegment[] maleSegments = { MarketSegment.MALE_LOW_INCOME, MarketSegment.MALE_HIGH_INCOME, MarketSegment.MALE_OLD, MarketSegment.MALE_YOUNG };
@@ -509,13 +510,13 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 					.put(NAME, new MyNDaysNCampaignsAgent())
 					.put("TwoKBot1", new TwoKBot())
 					.put("TwoKBot2", new TwoKBot())
-					.put("TwoKBot3", new TwoKBot())
 					.put("bot_1", new Tier1NDaysNCampaignsAgent())
 					.put("bot_2", new Tier1NDaysNCampaignsAgent())
 					.put("bot_3", new Tier1NDaysNCampaignsAgent())
 					.put("bot_4", new Tier1NDaysNCampaignsAgent())
 					.put("bot_5", new Tier1NDaysNCampaignsAgent())
-					.put("bot_6", new Tier1NDaysNCampaignsAgent()).build();
+					.put("bot_6", new Tier1NDaysNCampaignsAgent())
+					.put("bot_7", new Tier1NDaysNCampaignsAgent()).build();
 
 			// Don't change this.
 			OfflineGameServer.initParams(new String[] { "offline_config.ini", "CS1951K-FINAL" });
