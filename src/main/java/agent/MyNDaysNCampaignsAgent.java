@@ -128,6 +128,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		
 		int currentDay = this.getCurrentDay();
 		
+		// Determine which campaigns are of interest to us
 		
 		Set<Campaign> activeCampaigns = this.getActiveCampaigns();
 		
@@ -154,7 +155,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 						    .mapToDouble(a -> a)
 						    .sum();
 					
-					double playersExceptSelf = Math.max(0.01,  sum-1);
+					double playersExceptSelf = Math.max(0,  sum-1);
 					double expectedBid = playersExceptSelf / (playersExceptSelf+1);
 					
 					SegmentTuple t = new SegmentTuple(s, expectedBid);
@@ -164,7 +165,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			
 			for (SegmentTuple t : segments) {
 				double expectedBid = t.getExpectedBid();
-				double inverse = 1/expectedBid;
+				double inverse = (1/expectedBid);
 				double bid = inverse * effectiveReachLeft;
 				bid = Math.max(bid, 0.5);
 				bid = Math.min(bid, budgetPerImpression);
@@ -178,17 +179,65 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 				bids.add(bidEntry);
 			}
 			
+//			Collections.sort(segments);
+			
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
 				c.getId(), 
-				budgetLeft / c.getEndDay() - currentDay + 1, // campaign limit
+				budgetLeft / (c.getEndDay() - currentDay + 1), // campaign limit
 				bids
 			);
 		
 			bundles.add(bundle);
 		}
-		
-		// If we are competing with ourself reduce the bid associated with the less urgent campaign to zero
-
+//		
+//		for (Campaign c : this.getActiveCampaigns()) {
+//
+//			Set<SimpleBidEntry> bids = new HashSet<>();
+//			MarketSegment marketSegment = c.getMarketSegment();
+//			double budget = c.getBudget();
+//			int reach = c.getReach();
+//			double moneySpent = getCumulativeCost(c);
+//			int impressions = getCumulativeReach(c);
+//			double budgetLeft = Math.max((budget-moneySpent), 1);
+//			int startDay = c.getStartDay();
+//			int endDay = c.getEndDay();
+//			int day = getCurrentDay();
+//
+//			double bid;
+//			double budgetPerImpression = (budget-moneySpent)/(reach-impressions);
+//			// double dayRatio = (day - startDay + 0.5)/(endDay - startDay + 0.5);
+//			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
+//			bid = mapBid(budgetPerImpression*effectiveReachLeft);
+//			bid = Math.max(bid, 0.5);
+//			bid = Math.min(bid, 1.05);
+//			// }
+//
+//			SimpleBidEntry bidEntry;
+//			for(MarketSegment m : MarketSegment.values()) {
+//				// Our segment
+//				if (marketSegment.equals(m)) {
+//					bidEntry = new SimpleBidEntry(
+//						m, 
+//						bid,
+//						budgetLeft*bid // segment limit 
+//					);
+//				}
+//
+//				else { // Don't bid on segments that don't add to our reach
+//					bidEntry = new SimpleBidEntry(m,0.0,1.0);
+//				}
+//
+//				bids.add(bidEntry);
+//			}
+//		
+//			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
+//				c.getId(), 
+//				budgetLeft*bid, // campaign limit
+//				bids
+//			);
+//			
+//			bundles.add(bundle);
+//		}
 
 		return bundles;
 	}
