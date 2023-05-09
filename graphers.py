@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from utils import effective_reach, extract_array
+from utils import effective_reach, extract_array, get_num_campaigns
 
 
 
@@ -10,13 +10,17 @@ def make_detailed_histograms(data, players):
     # Do weight = sum(profit_in_bin)/sum(profit)
 
     gtypes = ['Impressions/Reach', 'Effective Reach', 'Cost per Impression', 'Budget per Reach', 'Duration']
-    weights = []
+    # bin_edges = np.histogram_bin_edges(data[players[0]]['profit'], bins=9)
+    # bin_edges = np.linspace(-3200, 4000, 10, dtype=int)
+    bin_edges = np.array([-3600,-2700,-1800,-900,-0.1,0.1,900,1800,2700,3600])
+    fig1, axes1 = plt.subplots(5, 5, figsize=(13, 9))
+    fig2, axes2 = plt.subplots(5, 5, figsize=(13, 9))
     for player in players:
-        bin_edges = np.histogram_bin_edges(data[player]['profit'], bins=9)
+        weights = []
         bin_inds = np.digitize(data[player]['profit'], bin_edges, right=True)
+        if player == players[0]: num_bins = 9
 
         # All bin + first 4 bins
-        fig1, axes1 = plt.subplots(5, 5, figsize=(13, 9))
         bins = {}
         for row, ax_row in enumerate(axes1):
             for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
@@ -51,10 +55,9 @@ def make_detailed_histograms(data, players):
                     else:
                         start = round(bin_edges[row-1], -1)
                         end = round(bin_edges[row], -1)
-                        ax.set_ylabel(f'({start}, {end})', rotation = 90, size='large')
+                        ax.set_ylabel(f'({end}, {start})', rotation = 90, size='large')
 
         # Now do next 5 bins
-        fig2, axes2 = plt.subplots(5, 5, figsize=(13, 9))
         bins = {}
         for row, ax_row in enumerate(axes2, start=4):
             for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
@@ -79,33 +82,47 @@ def make_detailed_histograms(data, players):
 
                 ax.hist(x[inds], bins=bins[gtype], alpha=0.5, label=player, edgecolor='black')
 
-                # ax.legend()
                 if row == 4: 
                     ax.set_title(gtype)
                 if col == 0:
                     start = round(bin_edges[row], -1)
                     end = round(bin_edges[row+1], -1)
-                    ax.set_ylabel(f'({start}, {end})', rotation = 90, size='large')
-        
+                    ax.set_ylabel(f'({end}, {start})', rotation = 90, size='large')
+
         # Print some stats
         total_flow = np.linalg.norm(data[player]['profit'], ord=1)
-        for bin_num in range(np.unique(bin_inds).shape[0]-1):
+        print('Bin distribution:')
+        for bin_num in range(num_bins):
             portion = np.linalg.norm(data[player]['profit'][bin_inds == bin_num+1], ord=1)
             weight = round(100*portion/total_flow, 1)
             weights.append(weight)
 
             start = round(bin_edges[bin_num], -1)
             end = round(bin_edges[bin_num+1], -1)
-            ax.set_ylabel(f'({start}-{end})', rotation = 90, size='large')
             num_instances = data[player]['profit'][bin_inds == bin_num+1].shape[0]
             print(f'({start}, {end}), Weight = {weight}, Instances = {num_instances}')
 
-        print('Total weight = ', sum(weights))
 
+        print(len(weights))
+        for row, ax_row in enumerate(axes1):
+            for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
+                if col == len(gtypes)-1 and player == players[0] and row > 0:
+                    ax2 = ax.twinx()
+                    ax2.set_ylabel(weights[row-1], rotation = 90, size='large')
+        for row, ax_row in enumerate(axes2, start=4):
+            for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
+                if col == len(gtypes)-1 and player == players[0]:
+                    ax2 = ax.twinx()
+                    ax2.set_ylabel(weights[row], rotation = 90, size='large')
+
+        print('Total weight = ', round(sum(weights), 1), '\n')
+
+        axes1[0, 0].legend()
+        axes2[0, 0].legend()
         title1 = f'Weights = {[100] + weights[:4]}'
         title2 = f'Weights = {weights[4:]}'
-        fig1.canvas.set_window_title(title1)
-        fig2.canvas.set_window_title(title2)
+#        fig1.canvas.set_window_title(title1)
+#        fig2.canvas.set_window_title(title2)
 
     # Rows 1,2,3,4,5 share x-axis
     # Rows 2,3,4,5 share y-axis
@@ -128,8 +145,6 @@ def make_detailed_histograms(data, players):
                     
     fig1.tight_layout()
     fig2.tight_layout()
-
-    plt.show()
 
 
     
@@ -181,41 +196,50 @@ def make_general_histograms(data, players):
         shared_y_axes.join(*y_ax_list)
                     
     fig.tight_layout()
-    plt.show()
 
 
 # Graph quality scores, cumulative profits
-def graph_performance(data, players):
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(8, 8))
-    
+def graph_performance(data, campaigns, players):
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(8, 10))
+    num_campaigns = get_num_campaigns(campaigns, players)
+
     for player in players:
         x = np.arange(11) + 1
         qs = data[player]['quality_scores']
         cp = data[player]['cumulative_profits']
+        num_c = num_campaigns[player]
+
         qs_mean = np.mean(qs, axis=0)
         qs_std = np.std(qs, axis=0) 
         cp_mean = np.mean(cp, axis=0)
         cp_std = np.std(cp, axis=0) 
+        num_c_mean = np.mean(num_c, axis=0)
+        num_c_std = np.std(num_c, axis=0) 
 
         if player == 'AlexSean':
             ax1.errorbar(x, cp_mean, yerr=cp_std, marker = '.', linestyle = 'dashed', label=player)
             ax2.errorbar(x, qs_mean, yerr=qs_std, marker = '.', linestyle = 'dashed', label=player)
+            ax3.errorbar(x, num_c_mean, yerr=num_c_std, marker = '.', linestyle = 'dashed', label=player)
         else:
             ax1.plot(x, cp_mean, label=player)
             ax2.plot(x, qs_mean, label=player)
+            ax3.plot(x, num_c_mean, label=player)
 
     ax1.set_title('Cumulative Profit')
     ax1.legend()
     ax1.grid(True)
-    ax1.set_xlabel('Day')
 
     ax2.set_title('Quality Score')
     ax2.legend()
     ax2.grid(True)
     ax2.set_ylim(-0.05, None)
 
+    ax3.set_title('Number of Campaigns')
+    ax3.legend()
+    ax3.grid(True)
+    ax3.set_xlabel('Day')
+
     fig.subplots_adjust(hspace=0.5)
-    plt.show()
 
 
 
@@ -255,4 +279,3 @@ def make_histograms_old(campaigns, players):
         ax4.legend()
 
     fig.subplots_adjust(hspace=0.6)
-    plt.show()

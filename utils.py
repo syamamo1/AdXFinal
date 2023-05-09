@@ -25,6 +25,21 @@ def get_histogram_data(campaigns, players):
     return data
 
 
+# Map player to (500, 11) with number of active campaigns
+def get_num_campaigns(campaigns, players):
+    data = {}
+    for player in players:
+        player_dict = campaigns[player]
+        data[player] = np.zeros((500, 11))
+        for game_num in range(500):
+            for id in player_dict[game_num]:
+                start = player_dict[game_num][id]['startDay']
+                end = player_dict[game_num][id]['endDay']
+                data[player][game_num, start:(end+1)] += 1
+
+    return data
+
+
 # [0, 1.38442]
 def effective_reach(impressions, reach):
     a = 4.08577
