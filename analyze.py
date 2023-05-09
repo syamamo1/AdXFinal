@@ -86,7 +86,7 @@ def compute_stats(campaigns, players, filename):
 def main():
     # Define players
     just_me = get_players(1, 0, 0)
-    me_and_2k = get_players(0, 1, 0)
+    me_and_bot = get_players(0, 1, 0)
     all_players = get_players(0, 0, 1)
 
     # Define filenames
@@ -100,9 +100,9 @@ def main():
     # Print results
     print(final_results)
     compute_stats(campaigns, all_players, stats_filename)
-    make_general_histograms(histogram_data, just_me)
-    # make_detailed_histograms(histogram_data, just_me)
-    graph_performance(data, campaigns, all_players)
+    # make_general_histograms(histogram_data, ['AlexSean', 'bot_1'])
+    make_detailed_histograms(histogram_data, just_me)
+    # graph_performance(data, campaigns, ['AlexSean', 'bot_1', 'bot_2', 'bot_3'])
     plt.show()
 
 
