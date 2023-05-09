@@ -56,7 +56,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 	
 	class BidTuple implements Comparable<BidTuple> {
 		private SimpleBidEntry simpleBidEntry;
-		private Double expectedReachLeft;
+		private Double effectiveReachLeft;
 		private Integer segmentClass;
 		private Integer campaignId;
 		
@@ -64,8 +64,8 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			return simpleBidEntry;
 		}
 		
-		public Double getExpectedReachLeft() {
-			return expectedReachLeft;
+		public Double getEffectiveReachLeft() {
+			return effectiveReachLeft;
 		}
 		
 		public Integer getCampaignId() {
@@ -76,9 +76,9 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			return segmentClass;
 		}
 		
-		public BidTuple(SimpleBidEntry simpleBidEntry, Double expectedReachLeft, Integer campaignId, Integer segmentClass) {
+		public BidTuple(SimpleBidEntry simpleBidEntry, Double effectiveReachLeft, Integer campaignId, Integer segmentClass) {
 			this.simpleBidEntry = simpleBidEntry;
-			this.expectedReachLeft = expectedReachLeft;
+			this.effectiveReachLeft = effectiveReachLeft;
 			this.campaignId = campaignId;
 			this.segmentClass = segmentClass;
 		}
@@ -91,7 +91,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			} else if (segmentClass < arg0.getSegmentClass()) {
 				return 1;
 			} else {
-				return -1 * expectedReachLeft.compareTo(arg0.getExpectedReachLeft());
+				return -1 * effectiveReachLeft.compareTo(arg0.getEffectiveReachLeft());
 			}
 		}
 	}
@@ -172,7 +172,8 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			
 			double budgetLeft = Math.max((budget-moneySpent), 1);
 			double budgetPerImpression = Math.max((budget-moneySpent)/(reach-impressions), 0.01);
-			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
+			int degree = 1;
+			double effectiveReachLeft = Math.pow(Math.pow(1.38442, degree) - Math.pow(effectiveReach(impressions, reach), degree), 1.0/degree);	
 			effectiveReachesLeft.put(c.getId(), effectiveReachLeft);
 
 			MarketSegment m = c.getMarketSegment();
@@ -202,6 +203,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 				double bid = 1.3 * expectedBid * effectiveReachLeft;
 				bid = Math.max(bid, 0.5);
 				bid = Math.min(bid, budgetPerImpression);
+				System.out.println("Bid, calcd bid, budgetPerImp: " + bid + ", " + 1.3*expectedBid * effectiveReachLeft + ", " + budgetPerImpression);
 				
 				SimpleBidEntry bidEntry = new SimpleBidEntry(
 					t.getMarketSegment(), 
@@ -234,7 +236,6 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 				int segmentClass = campaignSegmentClasses.get(campaignId);
 				BidTuple bt = new BidTuple(bidEntry, effectiveReachLeft, campaignId, segmentClass);
 				
-			
 				if (!allBids.containsKey(key)) {
 					allBids.put(key, new ArrayList<>());
 				}
@@ -360,7 +361,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			double bid = reach * ratio; // * dayModifier;
 			bid = Math.max(bid, 0.1*reach);
 			bid = Math.min(bid, 1*reach);
-			System.out.println("Segment, ratio, bid, reach: " + m + ", " + ratio + ", " + bid + ", " + reach);
+			// System.out.println("Segment, ratio, bid, reach: " + m + ", " + ratio + ", " + bid + ", " + reach);
 			bids.put(c, reach*ratio);
 		}
 		
