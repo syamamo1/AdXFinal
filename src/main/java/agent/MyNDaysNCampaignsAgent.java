@@ -142,18 +142,6 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 					}
 				}
 			}
-			
-//			for(MarketSegment m: MarketSegment.values()) {
-//				if (this.determineClass(m) == 3) {
-//					for(int day = 0; day < numberOfDays; day++) { 
-//						System.out.print("Market Segment " + m + " day " + day + ": ");
-//						for(Double prob: this.map.get(m).get(day)) {
-//							System.out.print(prob + " ");
-//						}
-//						System.out.println("");
-//					}
-//				}
-//			}
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -210,8 +198,8 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			
 			for (SegmentTuple t : segments) {
 				double expectedBid = t.getExpectedBid();
-				double inverse = (1/expectedBid);
-				double bid = inverse * effectiveReachLeft;
+//				double inverse = (1/expectedBid);
+				double bid = 1.3 * expectedBid * effectiveReachLeft;
 				bid = Math.max(bid, 0.5);
 				bid = Math.min(bid, budgetPerImpression);
 				
@@ -314,6 +302,9 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		double equalDiscount = 0.80; // change this to > 1 if we want to penalize overlap
 		double subsetDiscount = 0.95;
 		int currentDay = this.getCurrentDay();
+		
+//		double dayModifier = (currentDay/20) + 0.5;
+		
 		for (Campaign c : campaignsForAuction) {
 			MarketSegment m = c.getMarketSegment();
 			Set<MarketSegment> subsets = this.getMarketSubsets(m);
@@ -364,14 +355,13 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 				MarketSegment.marketSegmentSubset(m, myMarketSegment)) {
 					ratio = ratio * subsetDiscount;
 				}			
-			
+			}
 			// Make sure bid is between 0.1 and 1
-			double bid = reach * ratio;
+			double bid = reach * ratio; // * dayModifier;
 			bid = Math.max(bid, 0.1*reach);
 			bid = Math.min(bid, 1*reach);
 			System.out.println("Segment, ratio, bid, reach: " + m + ", " + ratio + ", " + bid + ", " + reach);
 			bids.put(c, reach*ratio);
-			}
 		}
 		
 		// Based on the campaigns that are being auctioned off, update our map
