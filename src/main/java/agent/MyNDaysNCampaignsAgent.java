@@ -329,7 +329,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		// double qualityScore = getQualityScore();
 		
 		// If we win, smallest our budget can be is what we bid
-		double equalDiscount = 0.80; // change this to > 1 if we want to penalize overlap
+		double equalDiscount = 0.8; // change this to > 1 if we want to penalize overlap
 		double subsetDiscount = 0.95;
 		int currentDay = this.getCurrentDay();
 		
@@ -358,7 +358,6 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			double ratio = expectedBid; 
 
 			int reach = c.getReach();
-			int inSegment = numberUsers(m);
 			int campaignClass = determineClass(m);
 
 			// We want class 2
@@ -368,6 +367,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 
 			// We prefer campaigns that have small reaches (helps QS)
 			// (0.84, 0.93, 1) for deltas (0.3, 0.5, 0.7)
+			// int inSegment = numberUsers(m);
 			// double reachRatio = Math.pow((double)reach/((double)inSegment*0.7), 0.2);
 			// ratio = reachRatio * ratio;
 
@@ -391,7 +391,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			bid = Math.max(bid, 0.1*reach);
 			bid = Math.min(bid, 1*reach);
 			System.out.println("Segment, ratio, bid, reach: " + m + ", " + ratio + ", " + bid + ", " + reach);
-			bids.put(c, reach*ratio);
+			bids.put(c, bid);
 		}
 		
 		// Based on the campaigns that are being auctioned off, update our map

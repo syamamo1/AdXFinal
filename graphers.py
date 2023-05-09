@@ -109,11 +109,16 @@ def make_detailed_histograms(data, players):
                 if col == len(gtypes)-1 and player == players[0] and row > 0:
                     ax2 = ax.twinx()
                     ax2.set_ylabel(weights[row-1], rotation = 90, size='large')
+                    ax2.yaxis.set_ticklabels([])
+            plt.tick_params(right=False)
         for row, ax_row in enumerate(axes2, start=4):
             for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
                 if col == len(gtypes)-1 and player == players[0]:
                     ax2 = ax.twinx()
                     ax2.set_ylabel(weights[row], rotation = 90, size='large')
+                    ax2.yaxis.set_ticklabels([])
+            plt.tick_params(right=False)
+
 
         print('Total weight = ', round(sum(weights), 1), '\n')
 
@@ -180,9 +185,9 @@ def make_general_histograms(data, players):
 
                 ax.hist(x[inds], bins=bins[gtype], alpha=0.5, label=player, edgecolor='black')
 
-            ax.legend()
             if row == 0: ax.set_title(gtype)
             if col == 0: ax.set_ylabel(subgroup, rotation = 90, size='large')
+            if row == 0 and col == 0: ax.legend()
 
     # Rows 1,2,3,4 share x-axis
     # Rows 2,3 share y-axis
@@ -191,9 +196,9 @@ def make_general_histograms(data, players):
         shared_x_axes = axes[0, j].get_shared_x_axes()
         shared_x_axes.join(*x_ax_list)
 
-        y_ax_list = [axes[i, j] for i in range(1, axes.shape[0]-1)]
-        shared_y_axes = axes[1, j].get_shared_y_axes()
-        shared_y_axes.join(*y_ax_list)
+        # y_ax_list = [axes[i, j] for i in range(1, axes.shape[0]-1)]
+        # shared_y_axes = axes[1, j].get_shared_y_axes()
+        # shared_y_axes.join(*y_ax_list)
                     
     fig.tight_layout()
 
