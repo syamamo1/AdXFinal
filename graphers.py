@@ -12,13 +12,13 @@ def make_detailed_histograms(data, players):
     gtypes = ['Impressions/Reach', 'Effective Reach', 'Cost per Impression', 'Budget per Reach', 'Duration']
     # bin_edges = np.histogram_bin_edges(data[players[0]]['profit'], bins=9)
     # bin_edges = np.linspace(-3200, 4000, 10, dtype=int)
-    bin_edges = np.array([-3600,-2700,-1800,-900,-0.1,0.1,900,1800,2700,3600])
+    bin_edges = np.array([-3500,-1500,-500,-100,-0.00001,0.00001,100,500,1500,3500])
     fig1, axes1 = plt.subplots(5, 5, figsize=(13, 9))
     fig2, axes2 = plt.subplots(5, 5, figsize=(13, 9))
+    num_bins = 9
     for player in players:
         weights = []
         bin_inds = np.digitize(data[player]['profit'], bin_edges, right=True)
-        if player == players[0]: num_bins = 9
 
         # All bin + first 4 bins
         bins = {}
@@ -97,13 +97,13 @@ def make_detailed_histograms(data, players):
             weight = round(100*portion/total_flow, 1)
             weights.append(weight)
 
-            start = round(bin_edges[bin_num], -1)
-            end = round(bin_edges[bin_num+1], -1)
+            start = round(bin_edges[bin_num])
+            end = round(bin_edges[bin_num+1])
             num_instances = data[player]['profit'][bin_inds == bin_num+1].shape[0]
             print(f'({start}, {end}), Weight = {weight}, Instances = {num_instances}')
 
 
-        print(len(weights))
+        # Print bins, weights, num instances
         for row, ax_row in enumerate(axes1):
             for col, (ax, gtype) in enumerate(zip(ax_row, gtypes)):
                 if col == len(gtypes)-1 and player == players[0] and row > 0:

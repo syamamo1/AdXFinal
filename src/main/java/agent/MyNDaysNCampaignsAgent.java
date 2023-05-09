@@ -311,8 +311,8 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		// double qualityScore = getQualityScore();
 		
 		// If we win, smallest our budget can be is what we bid
-		double equalDiscount = 0.70; // change this to > 1 if we want to penalize overlap
-		double subsetDiscount = 0.90;
+		double equalDiscount = 0.80; // change this to > 1 if we want to penalize overlap
+		double subsetDiscount = 0.95;
 		int currentDay = this.getCurrentDay();
 		for (Campaign c : campaignsForAuction) {
 			MarketSegment m = c.getMarketSegment();
@@ -336,14 +336,13 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			double expectedBid = playersExceptSelf / (playersExceptSelf+1);
 			double ratio = expectedBid; 
 
-			
 			int reach = c.getReach();
 			int inSegment = numberUsers(m);
 			int campaignClass = determineClass(m);
 
 			// We want class 2
 			if (campaignClass == 2) {
-				ratio = 0.90 * ratio;
+				ratio = 0.75 * ratio;
 			}
 
 			// We prefer campaigns that have small reaches (helps QS)
@@ -653,8 +652,8 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		if (args.length == 0) {
 			Map<String, AgentLogic> test_agents = new ImmutableMap.Builder<String, AgentLogic>()
 					.put(NAME, new MyNDaysNCampaignsAgent())
-//					.put("TwoKBot1", new TwoKBot())
-//					.put("TwoKBot2", new TwoKBot())
+					// .put("TwoKBot1", new TwoKBot())
+					// .put("TwoKBot2", new TwoKBot())
 					.put("bot_1", new Tier1NDaysNCampaignsAgent())
 					.put("bot_2", new Tier1NDaysNCampaignsAgent())
 					.put("bot_3", new Tier1NDaysNCampaignsAgent())
