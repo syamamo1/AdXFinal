@@ -2,3 +2,4 @@ console
 /target/
 **/.DS_Store
 .classpath
+stats.xlsx
