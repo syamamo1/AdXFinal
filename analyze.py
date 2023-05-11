@@ -100,9 +100,9 @@ def main():
     # Print results
     print(final_results)
     compute_stats(campaigns, all_players, stats_filename)
-    # make_general_histograms(histogram_data, ['AlexSean', 'bot_1'])
+    make_general_histograms(histogram_data, ['AlexSean', 'bot_1'])
     make_detailed_histograms(histogram_data, just_me)
-    # graph_performance(data, campaigns, ['AlexSean', 'bot_1', 'bot_2', 'bot_3'])
+    graph_performance(data, campaigns, ['AlexSean', 'bot_1', 'bot_2', 'bot_3'])
     plt.show()
 
 

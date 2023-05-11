@@ -205,7 +205,7 @@ def make_general_histograms(data, players):
 
 # Graph quality scores, cumulative profits
 def graph_performance(data, campaigns, players):
-    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(8, 10))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex=True, figsize=(8, 8))
     num_campaigns = get_num_campaigns(campaigns, players)
 
     for player in players:
@@ -244,7 +244,7 @@ def graph_performance(data, campaigns, players):
     ax3.grid(True)
     ax3.set_xlabel('Day')
 
-    fig.subplots_adjust(hspace=0.5)
+    fig.subplots_adjust(hspace=0.2)
 
 
 

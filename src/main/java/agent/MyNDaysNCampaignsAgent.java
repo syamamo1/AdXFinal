@@ -390,7 +390,7 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 			double bid = reach * ratio; // * dayModifier;
 			bid = Math.max(bid, 0.1*reach);
 			bid = Math.min(bid, 1*reach);
-			System.out.println("Segment, ratio, bid, reach: " + m + ", " + ratio + ", " + bid + ", " + reach);
+			// System.out.println("Segment, ratio, bid, reach: " + m + ", " + ratio + ", " + bid + ", " + reach);
 			bids.put(c, bid);
 		}
 		
