@@ -4,6 +4,7 @@ from utils import effective_reach, extract_array, get_histogram_data
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 # Either just us, us and bot_1, or all players
@@ -18,8 +19,8 @@ def get_players(solo, two, all):
     elif all:
         players = [
             'AlexSean',
-            'TwoKBot1',
-            'TwoKBot2',
+            # 'TwoKBot1',
+            # 'TwoKBot2',
             'bot_1',
             'bot_2',
             'bot_3',
@@ -27,6 +28,8 @@ def get_players(solo, two, all):
             'bot_5',
             'bot_6',
             'bot_7',
+            'bot_8',
+            'bot_9',
         ]
 
     return players
@@ -83,7 +86,7 @@ def compute_stats(campaigns, players, filename):
 def main():
     # Define players
     just_me = get_players(1, 0, 0)
-    me_and_2k = get_players(0, 1, 0)
+    me_and_bot = get_players(0, 1, 0)
     all_players = get_players(0, 0, 1)
 
     # Define filenames
@@ -97,9 +100,10 @@ def main():
     # Print results
     print(final_results)
     compute_stats(campaigns, all_players, stats_filename)
-    # make_general_histograms(histogram_data, me_and_2k)
-    make_detailed_histograms(histogram_data, me_and_2k)
-    graph_performance(data, all_players)
+    make_general_histograms(histogram_data, ['AlexSean', 'bot_1'])
+    make_detailed_histograms(histogram_data, just_me)
+    graph_performance(data, campaigns, ['AlexSean', 'bot_1', 'bot_2', 'bot_3'])
+    plt.show()
 
 
 

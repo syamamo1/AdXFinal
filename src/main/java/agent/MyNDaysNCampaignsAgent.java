@@ -29,7 +29,89 @@ import adx.variants.ndaysgame.Tier1NDaysNCampaignsAgent;
 
 
 public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
-	private static final String NAME = "AlexSean"; // TODO: enter a name. please remember to submit the Google form.
+	
+	class SegmentTuple implements Comparable<SegmentTuple> {
+		private MarketSegment segment;
+		private Double expectedBid;
+		
+		public MarketSegment getMarketSegment() {
+			return segment;
+		}
+		
+		public Double getExpectedBid() {
+			return expectedBid;
+		}
+		
+		public SegmentTuple(MarketSegment segment, double expectedBid) {
+			this.segment = segment;
+			this.expectedBid = expectedBid;
+		}
+
+		@Override
+		public int compareTo(SegmentTuple arg0) {
+			return expectedBid.compareTo(arg0.getExpectedBid());
+		}
+		
+	}
+	
+	class BidTuple implements Comparable<BidTuple> {
+		private SimpleBidEntry simpleBidEntry;
+		private Double expectedReachLeft;
+		private Integer segmentClass;
+		private Double budget;
+		private Integer duration;
+		private Integer campaignId;
+		
+		public SimpleBidEntry getSimpleBidEntry() {
+			return simpleBidEntry;
+		}
+		
+		public Double getExpectedReachLeft() {
+			return expectedReachLeft;
+		}
+		
+		public Integer getCampaignId() {
+			return campaignId;
+		}
+		
+		public Integer getSegmentClass() {
+			return segmentClass;
+		}
+		
+		public Double getPotential() {
+			return (((double) segmentClass) * expectedReachLeft * budget) / ((double) duration);
+		}
+		
+		public BidTuple(SimpleBidEntry simpleBidEntry, Double expectedReachLeft, Integer campaignId, Integer segmentClass, Integer duration, Double budget) {
+			this.simpleBidEntry = simpleBidEntry;
+			this.expectedReachLeft = expectedReachLeft;
+			this.campaignId = campaignId;
+			this.segmentClass = segmentClass;
+			this.duration = duration;
+			this.budget = budget;
+		}
+		
+		@Override
+		public int compareTo(BidTuple arg0) {
+			if (getPotential() > arg0.getPotential()) {
+				return -1;
+			} else if (getPotential() < arg0.getPotential()) {
+				return 1;
+			} else { 
+				return 0;
+			}
+//			
+//			if (segmentClass > arg0.getSegmentClass()) {
+//				return -1;
+//			} else if (segmentClass < arg0.getSegmentClass()) {
+//				return 1;
+//			} else {
+//				return -1 * expectedReachLeft.compareTo(arg0.getExpectedReachLeft());
+//			}
+		}
+	}
+	
+	private static final String NAME = "AlexSean";
 	private final int NUMBER_OF_DAYS = 10;
 	private final int NUMBER_OF_PLAYERS = 10;
 	private Map<MarketSegment, Map<Integer, List<Double>>> map;
@@ -75,18 +157,6 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 					}
 				}
 			}
-			
-//			for(MarketSegment m: MarketSegment.values()) {
-//				if (this.determineClass(m) == 3) {
-//					for(int day = 0; day < numberOfDays; day++) { 
-//						System.out.print("Market Segment " + m + " day " + day + ": ");
-//						for(Double prob: this.map.get(m).get(day)) {
-//							System.out.print(prob + " ");
-//						}
-//						System.out.println("");
-//					}
-//				}
-//			}
 		} catch(Exception e) {
 			e.printStackTrace();
 		}
@@ -102,11 +172,33 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		
 		int currentDay = this.getCurrentDay();
 		
-		for (Campaign c : this.getActiveCampaigns()) {
+		// Determine which campaigns are of interest to us
+		
+		Set<Campaign> activeCampaigns = this.getActiveCampaigns();
+		Map<Integer, Double> effectiveReachesLeft = new HashMap<>();
+		Map<Integer, Integer> campaignSegmentClasses = new HashMap<>();
+		Map<Integer, Double> budgets = new HashMap<>();
+		Map<Integer, Integer> durationsRemaining = new HashMap<>();
+		
+		for (Campaign c : activeCampaigns) {
+			Set<SimpleBidEntry> bids = new HashSet<>();
+			double budget = c.getBudget();
+			int reach = c.getReach();
+			double moneySpent = getCumulativeCost(c);
+			int impressions = getCumulativeReach(c);
+			
+			double budgetLeft = Math.max((budget-moneySpent), 1);
+			budgets.put(c.getId(), budgetLeft);
+			double budgetPerImpression = Math.max((budget-moneySpent)/(reach-impressions), 0.01);
+			int durationRemaining = (c.getEndDay() - currentDay + 1);
+			durationsRemaining.put(c.getId(),  durationRemaining);
+			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
+			effectiveReachesLeft.put(c.getId(), effectiveReachLeft);
+
 			MarketSegment m = c.getMarketSegment();
+			campaignSegmentClasses.put(c.getId(), determineClass(m));
 			
-			Map<MarketSegment, Double> expectedMaxBids = new HashMap<>();
-			
+			ArrayList<SegmentTuple> segments = new ArrayList<>();
 			Set<MarketSegment> subsets = this.getMarketSubsets(m);
 			for (MarketSegment s: subsets) {
 				if (this.determineClass(s) == 3) {
@@ -115,70 +207,116 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 					double sum = probabilities.stream()
 						    .mapToDouble(a -> a)
 						    .sum();
-					// Assumes other bidders use a uniform distribution between 0 and 1. Can 
-					// probably switch to something more sophisticated.
-					double excludingSelf = Math.max(0, sum - 1);
-					double expectedMaxBid = excludingSelf / (excludingSelf + 1);
-					expectedMaxBids.put(s, expectedMaxBid);
+					
+					double playersExceptSelf = Math.max(0,  sum-1);
+					double expectedBid = playersExceptSelf / (playersExceptSelf+1);
+					
+					SegmentTuple t = new SegmentTuple(s, expectedBid);
+					segments.add(t);
 				}
+			}
+			
+			for (SegmentTuple t : segments) {
+				double expectedBid = t.getExpectedBid();
+//				double inverse = (1/expectedBid);
+				double bid = 1.3 * expectedBid * effectiveReachLeft;
+				bid = Math.max(bid, 0.5);
+				bid = Math.min(bid, budgetPerImpression);
+				
+				SimpleBidEntry bidEntry = new SimpleBidEntry(
+					t.getMarketSegment(), 
+					bid, 
+					budgetLeft*bid // segment limit 
+				);
+				
+				bids.add(bidEntry);
+			}
+			
+			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
+				c.getId(), 
+				budgetLeft / durationRemaining, // campaign limit
+				bids
+			);
+		
+			bundles.add(bundle);
+		}
+		
+		// If some of our campaigns are bidding on he same segment, opportunistically 
+		// set some of our bids to 0 so we don't compete with ourself
+		
+		// Create a map from market segments to a list of (effectiveReachLeft, bidEntry)
+		Map<MarketSegment, ArrayList<BidTuple>> allBids = new HashMap<>();
+		for (NDaysAdBidBundle bundle : bundles) {
+			for (SimpleBidEntry bidEntry : bundle.getBidEntries()) {
+				MarketSegment key = bidEntry.getQuery().getMarketSegment();
+				int campaignId = bundle.getCampaignID();
+				double effectiveReachLeft = effectiveReachesLeft.get(campaignId);
+				int segmentClass = campaignSegmentClasses.get(campaignId);
+				int durationRemaining = durationsRemaining.get(campaignId);
+				double budget = budgets.get(campaignId);
+				
+				BidTuple bt = new BidTuple(bidEntry, effectiveReachLeft, campaignId, segmentClass, durationRemaining, budget);
+			
+				if (!allBids.containsKey(key)) {
+					allBids.put(key, new ArrayList<>());
+				}
+				allBids.get(key).add(bt);
 			}
 		}
 		
-		for (Campaign c : this.getActiveCampaigns()) {
-
-			Set<SimpleBidEntry> bids = new HashSet<>();
-			MarketSegment marketSegment = c.getMarketSegment();
-			double budget = c.getBudget();
-			int reach = c.getReach();
-			double moneySpent = getCumulativeCost(c);
-			int impressions = getCumulativeReach(c);
-			double budgetLeft = Math.max((budget-moneySpent), 1);
-			int startDay = c.getStartDay();
-			int endDay = c.getEndDay();
-			int day = getCurrentDay();
-
-			double budgetPerImpression = (budget-moneySpent)/(reach-impressions);
-			// double dayRatio = (day - startDay + 0.5)/(endDay - startDay + 0.5);
-			double effectiveReachLeft = Math.sqrt(Math.pow(1.38442, 2) - Math.pow(effectiveReach(impressions, reach), 2));	
-			
-			double bid = budgetPerImpression*effectiveReachLeft;
-			bid = mapBid(budgetPerImpression*effectiveReachLeft);
-			bid = Math.max(bid, 0.5);
-			bid = Math.min(bid, 1.05);
-			
-
-			SimpleBidEntry bidEntry;
-			for(MarketSegment m : MarketSegment.values()) {
-				if (determineClass(marketSegment) == 2) {
-					if (MarketSegment.marketSegmentSubset(marketSegment, m) && !marketSegment.equals(m)) {
-						bidEntry = new SimpleBidEntry(
-							m, 
-							bid, 
-							budgetLeft*bid // segment limit 
-						);
-						bids.add(bidEntry);
-					}
-				}
-				
-				else if (determineClass(marketSegment) == 3) {
-					if (marketSegment.equals(m)) {
-						bidEntry = new SimpleBidEntry(
-							m, 
-							bid, 
-							budgetLeft*bid // segment limit 
-						);
-						bids.add(bidEntry);
-					}
-				}
-
-			}
+		// Sort each list
+		for (MarketSegment key : allBids.keySet()) {
+			Collections.sort(allBids.get(key));
+		}
 		
+		// Clear the bundles and then for each campaign reconstruct the bids
+		bundles.clear();
+		
+		for (Campaign c : activeCampaigns) {
+			Set<SimpleBidEntry> bids = new HashSet<>();
+			int campaignId = c.getId();
+			double budget = c.getBudget();
+			double moneySpent = getCumulativeCost(c);
+			double budgetLeft = Math.max((budget-moneySpent), 1);
+			
+			for (MarketSegment key: allBids.keySet()) {
+				// Find index of bid tuple with campaign ID if it exists
+				ArrayList<BidTuple> allBidsForSegment = allBids.get(key);
+				for (int index = 0; index < allBidsForSegment.size(); index++) {
+					BidTuple bt = allBidsForSegment.get(index);
+					if (bt.getCampaignId() == campaignId) {
+						SimpleBidEntry bid = new SimpleBidEntry(
+							key, 
+							bt.getSimpleBidEntry().getBid() / Math.pow((double)(index+1), 2), 
+							bt.getSimpleBidEntry().getLimit()
+						);
+						bids.add(bid);
+						
+						
+//						if (index == 0) {
+//							// This is the campaign with the greatest remaining reach
+//							// and should therefore remain the same
+//							bids.add(bt.getSimpleBidEntry());
+//						} else {
+//							// This is not the most urgent bid in this category, reduce its
+//							// bid to zero
+//							SimpleBidEntry bid = new SimpleBidEntry(
+//								key, 
+//								0.01, 
+//								0.01
+//							);
+//							bids.add(bid);
+//						}
+					}
+				}
+			}
+			
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
 				c.getId(), 
-				budgetLeft*bid, // campaign limit
+				budgetLeft / (c.getEndDay() - currentDay + 1), // campaign limit
 				bids
 			);
-			
+		
 			bundles.add(bundle);
 		}
 
@@ -187,28 +325,49 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 
 	@Override
 	protected Map<Campaign, Double> getCampaignBids(Set<Campaign> campaignsForAuction) throws AdXException {
-
 		Map<Campaign, Double> bids = new HashMap<>();
 		// double qualityScore = getQualityScore();
 		
 		// If we win, smallest our budget can be is what we bid
-		double equalDiscount = 0.50; // change this to > 1 if we want to penalize overlap
-		double subsetDiscount = 0.70;
+		double equalDiscount = 0.8; // change this to > 1 if we want to penalize overlap
+		double subsetDiscount = 0.95;
+		int currentDay = this.getCurrentDay();
+		
+//		double dayModifier = (currentDay/20) + 0.5;
+		
 		for (Campaign c : campaignsForAuction) {
-			double ratio = 1; // replace this with demand...
+			MarketSegment m = c.getMarketSegment();
+			Set<MarketSegment> subsets = this.getMarketSubsets(m);
+			double sum = 0;
+			int count = 0;
+			for (MarketSegment s: subsets) {
+				if (this.determineClass(s) == 3) {
+			
+					List<Double> probabilities = this.map.get(s).get(currentDay);
+					
+					sum = sum + probabilities.stream()
+					.mapToDouble(a -> a)
+					.sum();
+					count += 1;
+				}
+			}
+			
+			double avg = sum/count;
+			double playersExceptSelf = Math.max(0,  avg-1);
+			double expectedBid = playersExceptSelf / (playersExceptSelf+1);
+			double ratio = expectedBid; 
 
-			MarketSegment marketSegment = c.getMarketSegment();
 			int reach = c.getReach();
-			int inSegment = numberUsers(marketSegment);
-			int campaignClass = determineClass(marketSegment);
+			int campaignClass = determineClass(m);
 
 			// We want class 2
-			// if (campaignClass == 2) {
-			// 	ratio = 0.90 * ratio;
-			// }
+			if (campaignClass == 2) {
+				ratio = 0.75 * ratio;
+			}
 
 			// We prefer campaigns that have small reaches (helps QS)
 			// (0.84, 0.93, 1) for deltas (0.3, 0.5, 0.7)
+			// int inSegment = numberUsers(m);
 			// double reachRatio = Math.pow((double)reach/((double)inSegment*0.7), 0.2);
 			// ratio = reachRatio * ratio;
 
@@ -217,30 +376,28 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 				MarketSegment myMarketSegment = myC.getMarketSegment();
 
 				// Same segment 
-				if (myMarketSegment.equals(marketSegment)) {
+				if (myMarketSegment.equals(m)) {
 					ratio = ratio * equalDiscount;
 				}			
 
 				// Ours subset auction OR auction subset ours 
-				else if (MarketSegment.marketSegmentSubset(myMarketSegment, marketSegment) || 
-				MarketSegment.marketSegmentSubset(marketSegment, myMarketSegment)) {
+				else if (MarketSegment.marketSegmentSubset(myMarketSegment, m) || 
+				MarketSegment.marketSegmentSubset(m, myMarketSegment)) {
 					ratio = ratio * subsetDiscount;
 				}			
-			
+			}
 			// Make sure bid is between 0.1 and 1
-			double bid = reach * ratio;
+			double bid = reach * ratio; // * dayModifier;
 			bid = Math.max(bid, 0.1*reach);
 			bid = Math.min(bid, 1*reach);
-			System.out.println("Segment, ratio, bid, reach: " + marketSegment + ", " + ratio + ", " + bid + ", " + reach);
-			bids.put(c, reach*ratio);
-			}
+			// System.out.println("Segment, ratio, bid, reach: " + m + ", " + ratio + ", " + bid + ", " + reach);
+			bids.put(c, bid);
 		}
 		
 		// Based on the campaigns that are being auctioned off, update our map
 		for (Campaign c : campaignsForAuction) {
 			MarketSegment m = c.getMarketSegment();
 			int endDay = c.getEndDay();
-			int currentDay = this.getCurrentDay();
 			
 			Set<MarketSegment> subsets = this.getMarketSubsets(m);
 			for(int day = currentDay; day <= endDay; day++) {
@@ -374,7 +531,6 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		PrintStream stream = new PrintStream(file);
 		System.out.println("\nSaving console to "+file.getAbsolutePath());
 		System.setOut(stream);
-
         LocalTime currentTime = LocalTime.now();
         System.out.println("Current time: " + currentTime);
 	  }
@@ -516,15 +672,18 @@ public class MyNDaysNCampaignsAgent extends NDaysNCampaignsAgent {
 		if (args.length == 0) {
 			Map<String, AgentLogic> test_agents = new ImmutableMap.Builder<String, AgentLogic>()
 					.put(NAME, new MyNDaysNCampaignsAgent())
-					.put("TwoKBot1", new TwoKBot())
-					.put("TwoKBot2", new TwoKBot())
+					// .put("TwoKBot1", new TwoKBot())
+					// .put("TwoKBot2", new TwoKBot())
 					.put("bot_1", new Tier1NDaysNCampaignsAgent())
 					.put("bot_2", new Tier1NDaysNCampaignsAgent())
 					.put("bot_3", new Tier1NDaysNCampaignsAgent())
 					.put("bot_4", new Tier1NDaysNCampaignsAgent())
 					.put("bot_5", new Tier1NDaysNCampaignsAgent())
 					.put("bot_6", new Tier1NDaysNCampaignsAgent())
-					.put("bot_7", new Tier1NDaysNCampaignsAgent()).build();
+					.put("bot_7", new Tier1NDaysNCampaignsAgent())
+					.put("bot_8", new Tier1NDaysNCampaignsAgent())
+					.put("bot_9", new Tier1NDaysNCampaignsAgent())
+					.build();
 
 			// Don't change this.
 			OfflineGameServer.initParams(new String[] { "offline_config.ini", "CS1951K-FINAL" });

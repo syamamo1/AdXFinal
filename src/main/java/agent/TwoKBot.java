@@ -32,7 +32,7 @@ public class TwoKBot extends NDaysNCampaignsAgent {
 
 	public TwoKBot() {
 		// TODO: fill this in (if necessary)
-		redirectPrints();
+//		redirectPrints();
 	}
 	
 	@Override
@@ -78,8 +78,13 @@ public class TwoKBot extends NDaysNCampaignsAgent {
 						bid, 
 						budgetLeft*bid // segment limit 
 					);
-				bids.add(bidEntry);
 				}
+
+				else { // Don't bid on segments that don't add to our reach
+					bidEntry = new SimpleBidEntry(m,0.0,1.0);
+				}
+
+				bids.add(bidEntry);
 			}
 		
 			NDaysAdBidBundle bundle = new NDaysAdBidBundle( 
